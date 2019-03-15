@@ -29,10 +29,18 @@ public:
   const int get_turnaround_time() const { return turnaround_time; };
   // Get remaining CPU burst for this burst. return 0 for blocked state
   const int get_remaining_time() const { return remaining_time; };
+  // Get estimated remaining time that is set before. For SRT and SJF
+  const int get_estimated_remaining_time() const {
+    return estimated_remaining_time;
+  };
   // Get remaining CPU bursts
   const int get_remaining_CPU_bursts() const;
   // Only for debugging. not changeable from outside
   const std::vector<int> &get_time_sequence() const { return time_sequence; };
+  // Set the estimated remaining time
+  void set_estimated_remaining_time(const int t) {
+    estimated_remaining_time = t;
+  };
   /* Run for 1 ms. Returns the state after running 1ms:
   1 for CPU and 0 for IO. If the preocess ends then return -1*/
   const int run_for_1ms();
@@ -66,7 +74,7 @@ private:
   int total_time;
   // Process ID
   char ID;
-  // A bool sequence for this process.
+  // An int sequence for this process.
   std::vector<int> time_sequence;
   /* Wait time counter in ms for inquiry and output. Will be reset
   after every CPU busrt! */
@@ -76,6 +84,8 @@ private:
   int turnaround_time;
   // Remaining time for this CPU burst. 0 when blocked
   int remaining_time;
+  // Estimated remaining time sor SRT and SJF
+  int estimated_remaining_time;
 };
 
 #endif

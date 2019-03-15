@@ -35,8 +35,10 @@ const int process::run_for_1ms() {
   assert(state == 1);
   const int next = this->proceed();
   ++turnaround_time;
-  if (next)
+  if (next) {
     --remaining_time;
+    --estimated_remaining_time;
+  }
   return next;
 }
 
