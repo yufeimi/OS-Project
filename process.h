@@ -33,6 +33,8 @@ public:
   const int get_estimated_remaining_time() const {
     return estimated_remaining_time;
   };
+  // Get last CPU burst time. For SRT and SJF
+  const int get_last_burst_time() const;
   // Get remaining CPU bursts
   const int get_remaining_CPU_bursts() const;
   // Only for debugging. not changeable from outside

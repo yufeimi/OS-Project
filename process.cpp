@@ -31,6 +31,11 @@ const int process::get_remaining_CPU_bursts() const {
   return bursts;
 }
 
+const int process::get_last_burst_time() const {
+  int bursted = time_sequence.size() / 2 - get_remaining_CPU_bursts();
+  return time_sequence[2 * bursted];
+}
+
 const int process::run_for_1ms() {
   assert(state == 1);
   const int next = this->proceed();
