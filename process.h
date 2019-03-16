@@ -41,6 +41,8 @@ public:
   const int get_last_burst_time() const;
   // Get remaining CPU bursts
   const int get_remaining_CPU_bursts() const;
+  // return whether this process is preempted
+  const int preempted() const;
   // Only for debugging. not changeable from outside
   const std::vector<int> &get_time_sequence() const { return time_sequence; };
   // Set the estimated remaining time

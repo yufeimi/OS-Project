@@ -31,6 +31,10 @@ const int process::get_remaining_CPU_bursts() const {
   return bursts;
 }
 
+const int process::preempted() const {
+  return (query_state(current_time - 1) && state);
+}
+
 const int process::get_last_burst_time() const {
   int bursted = time_sequence.size() / 2 - get_remaining_CPU_bursts();
   return time_sequence[2 * bursted];
