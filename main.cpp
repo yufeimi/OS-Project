@@ -17,12 +17,12 @@ int main(int argc, char const *argv[]) {
      argv[7] is t_sice as the time slice value
      argv[8] is rr_add is either BEGGINING or END. END is default
   */
-  std::vector<process> processes = process_generator(70, 0.001, 3000, 10);
-  // std::vector<process> processes;
-  // process A(5, 'A', {10, 20, 30, 60, 480});
-  // process B(3,'B', {5, 25, 15, 30, 500});
-  // processes.push_back(A);
-  // processes.push_back(B);
+  // std::vector<process> processes = process_generator(70, 0.001, 3000, 10);
+  std::vector<process> processes;
+  process A(5, 'A', {10, 20, 30, 60, 480});
+  process B(3,'B', {5, 25, 15, 30, 500});
+  processes.push_back(A);
+  processes.push_back(B);
   RR_scheduling RRsimulator(processes, 4, 100, false);
   RRsimulator.run();
   return 0;

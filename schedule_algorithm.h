@@ -25,6 +25,9 @@ protected:
   call wait_for_1ms(false) for t_cs/2 milisecond outside
   this function. */
   void context_switch(process_ptr);
+  void check_arrival();
+  void do_waiting();
+  void do_blocking();
   void prepare_add_to_ready_queue(process_ptr);
   void print_event(const std::string);
   virtual void perform_add_to_ready_queue() = 0;

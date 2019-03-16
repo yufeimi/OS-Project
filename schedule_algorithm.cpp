@@ -32,30 +32,17 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
       break;
     time++;
     // Processes in ready queue wait for t_cs
-    for (auto itr = ready_queue.begin(); itr != ready_queue.end(); ++itr) {
-      (*itr)->wait_for_1ms(true);
-    }
+    do_waiting();
     // Process_in waits for t_cs if it was in ready queue
     if (process_in_wait) {
       process_in->wait_for_1ms(true);
     }
     // check if have any new processes have the same arrival time.
-    for (auto itr = processes.begin(); itr != processes.end(); ++itr) {
-      if (itr->get_arrival_time() == time) {
-        prepare_add_to_ready_queue(itr);
-      }
-    }
+    check_arrival();
     // Process_out is not in the ready queue for the first half
     running->wait_for_1ms(false);
     // Process in I/O burst proceed for t_cs
-    for (auto itr = blocked.begin(); itr != blocked.end(); ++itr) {
-      int state = (*itr)->block_for_1ms();
-      // If the I/O time is end then move it to ready_queue
-      if (state == 1) {
-        blocked.erase(itr);
-        prepare_add_to_ready_queue(*itr);
-      }
-    }
+    do_blocking();
     // In the final loop, remove the running process
     if (i == t_cs / 2 - 1) {
       // Determine whether add the running process to ready_queue
@@ -84,9 +71,7 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
   for (int i = 0; i < t_cs / 2; i++) {
     time++;
     // Processes in ready queue wait for t_cs
-    for (auto itr = ready_queue.begin(); itr != ready_queue.end(); ++itr) {
-      (*itr)->wait_for_1ms(true);
-    }
+    do_waiting();
     // check if have any new processes have the same arrival time.
     for (auto itr = processes.begin(); itr != processes.end(); ++itr) {
       if (itr->get_arrival_time() == time) {
@@ -96,20 +81,39 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     // Process_in is not in the ready queue for the second half
     running->wait_for_1ms(false);
     // Process in I/O burst proceed for t_cs
-    for (auto itr = blocked.begin(); itr != blocked.end(); ++itr) {
-      int state = (*itr)->block_for_1ms();
-      // If the I/O time is end then move it to ready_queue
-      if (state == 1) {
-        blocked.erase(itr);
-        prepare_add_to_ready_queue(*itr);
-      }
-    }
+    do_blocking();
     perform_add_to_ready_queue();
   }
   std::stringstream event;
   event << "Process " << running->get_ID() << " started using the CPU for "
         << running->get_remaining_time() << " ms burst";
   print_event(event.str());
+}
+
+void schedule_algorithm::check_arrival() {
+
+  for (auto itr = processes.begin(); itr != processes.end(); ++itr) {
+    if (itr->get_arrival_time() == time) {
+      prepare_add_to_ready_queue(itr);
+    }
+  }
+}
+
+void schedule_algorithm::do_waiting() {
+  for (auto itr = ready_queue.begin(); itr != ready_queue.end(); ++itr) {
+    (*itr)->wait_for_1ms(true);
+  }
+}
+
+void schedule_algorithm::do_blocking() {
+  for (auto itr = blocked.begin(); itr != blocked.end(); ++itr) {
+    int state = (*itr)->block_for_1ms();
+    // If the I/O time is end then move it to ready_queue
+    if (state == 1) {
+      blocked.erase(itr);
+      prepare_add_to_ready_queue(*itr);
+    }
+  }
 }
 
 void schedule_algorithm::prepare_add_to_ready_queue(
@@ -133,20 +137,10 @@ FCFS_scheduling::FCFS_scheduling(const std::vector<process> &p, const int t_cs)
 void FCFS_scheduling::run() {
   print_event("Simulator started for FCFS");
   while (terminated.size() < processes.size()) {
-    /* each process in I/O burst proceed for 1ms  */
-    for (auto itr = blocked.begin(); itr != blocked.end(); ++itr) {
-      int state = (*itr)->block_for_1ms(); // block_for_1ms() or wait_for_1ms ??
-      if (state == 1) {
-        blocked.erase(itr);
-        prepare_add_to_ready_queue(*itr);
-      }
-    }
+    // block processes on I/O for 1ms
+    do_blocking();
     // check if have any new processes have the same arrival time.
-    for (auto itr = processes.begin(); itr != processes.end(); ++itr) {
-      if (itr->get_arrival_time() == time) {
-        prepare_add_to_ready_queue(itr);
-      }
-    }
+    check_arrival();
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
     perform_add_to_ready_queue();
@@ -200,26 +194,6 @@ RR_scheduling::RR_scheduling(const std::vector<process> &p, const int t_cs,
                              const int t_slice, const bool add)
     : schedule_algorithm(p, t_cs), t_slice(t_slice), add(add) {}
 
-void RR_scheduling::perform_add_to_ready_queue() {
-  std::sort(pre_ready_queue.begin(), pre_ready_queue.end(), resolveTie);
-  for (auto i : pre_ready_queue) {
-    if (add == true) {
-      ready_queue.push_front(i);
-    } else {
-      ready_queue.push_back(i);
-    }
-    std::stringstream event;
-    if (i->get_arrival_time() == time) {
-      event << "Process " << i->get_ID() << " arrived; added to ready queue";
-    } else {
-      event << "Process " << i->get_ID()
-            << " completed I/O; added to ready queue";
-    }
-    print_event(event.str());
-  }
-  pre_ready_queue.clear();
-}
-
 void RR_scheduling::run() {
   print_event("Simulator started for RR");
 
@@ -227,20 +201,10 @@ void RR_scheduling::run() {
   int time_running = 0;
 
   while (terminated.size() < processes.size()) {
-    /* each process in I/O burst proceed for 1ms  */
-    for (auto itr = blocked.begin(); itr != blocked.end(); ++itr) {
-      int state = (*itr)->block_for_1ms(); // block_for_1ms() or wait_for_1ms ??
-      if (state == 1) {
-        blocked.erase(itr);
-        prepare_add_to_ready_queue(*itr);
-      }
-    }
+    // block processes on I/O for 1ms
+    do_blocking();
     // check if have any new processes have the same arrival time.
-    for (auto itr = processes.begin(); itr != processes.end(); ++itr) {
-      if (itr->get_arrival_time() == time) {
-        prepare_add_to_ready_queue(itr);
-      }
-    }
+    check_arrival();
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
     perform_add_to_ready_queue();
@@ -282,4 +246,24 @@ void RR_scheduling::run() {
     time++;
   }
   print_event("Simulator ended for RR");
+}
+
+void RR_scheduling::perform_add_to_ready_queue() {
+  std::sort(pre_ready_queue.begin(), pre_ready_queue.end(), resolveTie);
+  for (auto i : pre_ready_queue) {
+    if (add == true) {
+      ready_queue.push_front(i);
+    } else {
+      ready_queue.push_back(i);
+    }
+    std::stringstream event;
+    if (i->get_arrival_time() == time) {
+      event << "Process " << i->get_ID() << " arrived; added to ready queue";
+    } else {
+      event << "Process " << i->get_ID()
+            << " completed I/O; added to ready queue";
+    }
+    print_event(event.str());
+  }
+  pre_ready_queue.clear();
 }
