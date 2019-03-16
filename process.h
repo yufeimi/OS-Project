@@ -33,6 +33,10 @@ public:
   const int get_estimated_remaining_time() const {
     return estimated_remaining_time;
   };
+  // Get last estimateed remianing time
+  const int get_last_estimated_burst_time() const {
+    return last_estimated_burst_time;
+  };
   // Get last CPU burst time. For SRT and SJF
   const int get_last_burst_time() const;
   // Get remaining CPU bursts
@@ -40,9 +44,7 @@ public:
   // Only for debugging. not changeable from outside
   const std::vector<int> &get_time_sequence() const { return time_sequence; };
   // Set the estimated remaining time
-  void set_estimated_remaining_time(const int t) {
-    estimated_remaining_time = t;
-  };
+  void set_estimated_remaining_time(const int t);
   /* Run for 1 ms. Returns the state after running 1ms:
   1 for CPU and 0 for IO. If the preocess ends then return -1*/
   const int run_for_1ms();
@@ -88,6 +90,8 @@ private:
   int remaining_time;
   // Estimated remaining time sor SRT and SJF
   int estimated_remaining_time;
+  // tau_i-1
+  int last_estimated_burst_time;
 };
 
 #endif

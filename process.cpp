@@ -36,6 +36,11 @@ const int process::get_last_burst_time() const {
   return time_sequence[2 * bursted];
 }
 
+void process::set_estimated_remaining_time(const int t) {
+  estimated_remaining_time = t;
+  last_estimated_burst_time = t;
+}
+
 const int process::run_for_1ms() {
   assert(state == 1);
   const int next = this->proceed();
@@ -82,6 +87,8 @@ void process::reset() {
   state = 1;
   remaining_time = 0;
   total_time = 0;
+  estimated_remaining_time = 0;
+  last_estimated_burst_time = 0;
   for (unsigned int i = 0; i < time_sequence.size(); ++i) {
     total_time += time_sequence[i];
   }
@@ -110,7 +117,7 @@ const int process::proceed() {
 }
 
 const int process::query_state(int time) const {
-  int state;
+  int state = 0;
   for (unsigned int i = 0; i < time_sequence.size(); ++i) {
     if (time >= time_sequence[i])
       time -= time_sequence[i];
