@@ -208,6 +208,14 @@ void RR_scheduling::perform_add_to_ready_queue() {
     } else {
       ready_queue.push_back(i);
     }
+    std::stringstream event;
+    if (i->get_arrival_time() == time) {
+      event << "Process " << i->get_ID() << " arrived; added to ready queue";
+    } else {
+      event << "Process " << i->get_ID()
+            << " completed I/O; added to ready queue";
+    }
+    print_event(event.str());
   }
   pre_ready_queue.clear();
 }
