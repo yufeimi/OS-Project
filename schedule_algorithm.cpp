@@ -322,7 +322,7 @@ void RR_scheduling::perform_add_to_ready_queue() {
 }
 void SJF_scheduling::SJF_scheduling(const std::vector<process> &p, const int t_cs, 
                                     const double lambda,const double alpha);
-    ：schedule_algorithm(p,t_cs), lambda(lambda),alpha(alpha){}
+    :schedule_algorithm(p,t_cs), lambda(lambda),alpha(alpha){}
 void SJF_scheduling::run(){
   print_event("Simulator started for SJF");
   int state=-2;
