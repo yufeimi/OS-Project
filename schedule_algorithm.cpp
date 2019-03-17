@@ -4,7 +4,12 @@ bool resolveTie(process_ptr i, process_ptr j) {
   return (i->get_ID() < j->get_ID());
 }
 bool compare_sjf(process_ptr a, process_ptr b){
-  return a->get_last_estimated_burst_time()<b->get_last_estimated_burst_time();
+  return (a->get_last_estimated_burst_time()<b->get_last_estimated_burst_time())||
+          (a->get_last_estimated_burst_time()==b->get_last_estimated_burst_time()&&(a.get_ID()<b.get_ID()));
+}
+bool compare_srt(process_ptr a, process_ptr b){
+  return (a->get_estimated_remaining_time()<b->get_estimated_remaining_time())||
+          (a->get_estimated_remaining_time()==b->get_estimated_remaining_time()&&(a.get_ID()<b.get_ID()));
 }
 schedule_algorithm::schedule_algorithm(const std::vector<process> &p,
                                        const int t_cs)
@@ -403,4 +408,118 @@ void SJF_scheduling::perform_add_to_ready_queue() {
 int SJF_scheduling::est_tau(double tau,int t){
   double next_est=alpha*t+(1-alpha)*tau;
   return next_est;
-}    
+}  
+//SRT
+SRT_scheduling::SRT_scheduling(const std::vector<process> &p, const int t_cs,
+                             const double lambda,const double alpha)
+    : schedule_algorithm(p, t_cs), lambda(lambda), alpha(alpha) {}
+
+void SRT_scheduling::run() {
+  print_event("Simulator started for SRT");
+
+  // The time the current process is running for
+  int time_running = 0;
+  int state = -2;
+  while (terminated.size() < processes.size()) {
+    // block processes on I/O for 1ms
+    do_blocking();
+    // check if have any new processes have the same arrival time.
+    check_arrival();
+    // remove the running process
+    // Determine whether add the running process to ready_queue
+    // or blocked by its state
+    if (state == 0 || state == -1 ||
+        (time_running >= t_slice && !ready_queue.empty())) {//is here to determine?
+      if (running != processes.end()) {
+        if (running->get_state() == 1) {
+          std::stringstream event;
+          event << "Time slice expired; process " << running->get_ID()
+                << " preempted with " << running->get_remaining_time()
+                << " ms to go";
+          print_event(event.str());
+          prepare_add_to_ready_queue(running);
+        } 
+        else if (running->get_state() == 0) {
+          blocked.insert(running);
+        } 
+        else {
+          terminated.insert(running);
+        }
+      }
+    }
+    //compare the 1st one in pre_ready_queue and the 1st one in ready_queue is the same one or not;
+    std::sort(pre_ready_queue.begin(), pre_ready_queue.end(), compare_srt);//sort the pre_ready_queue first
+    std::string pre_first_ID=(*(pre_ready_queue.begin()))->get_ID();//ID for resolveTie
+    // loop for all the processes in the pre_ready_queue to push_back them
+    // into ready queue
+    perform_add_to_ready_queue();
+    //get the ready_queue first ID;
+    std::string ready_first_ID=(*(pre_ready_queue.begin()))->get_ID();//if the pre_ready_first is the same one. then PREEMPTE.
+    // Run the running process for 1 ms. If there is no running process
+    // then skip to next 1 ms.
+    if (state == 0) {
+      std::stringstream event;
+      event << "Process " << running->get_ID() << " completed a CPU burst; "
+            << running->get_remaining_CPU_bursts() << " to go";
+      print_event(event.str());
+    } else if (state == -1) {
+      std::stringstream event;
+      event << "Process " << running->get_ID() << " terminated";
+      print_event(event.str());
+    }
+    if (state != 1) {
+      if (!ready_queue.empty()) {
+        context_switch(*(ready_queue.begin()));
+        cs = 1;
+        state = 1;
+        time_running = 0;
+      } else if (state != -2) {
+        context_switch(processes.end());
+        cs = 1;
+        state = -2;
+        time_running = 0;
+      }
+    }
+    // when arrived new process have the shortest remaining time,
+    if (pre_ready_first==ready_first && pre_first_ID==ready_first_ID) {//if their ID are the same one them preempt.
+      context_switch(*(ready_queue.begin()));
+      time_running = 0;
+      cs = 1;
+      state = 1;
+    }
+    if (cs == 1) {
+      // time does not increment after context switch
+      cs = 0;
+      continue;
+    }
+    // Run the running process for 1 ms. If there is no running process
+    // then skip to next 1 ms.
+    if (running != processes.end()) {
+      state = running->run_for_1ms();
+      ++time_running;
+    } else {
+      // no current running process
+      state = -2;
+    }
+    time++;
+  }
+  print_event("Simulator ended for SRT");
+}
+void SRT_scheduling::perform_add_to_ready_queue() {
+  for (auto i: pre_ready_queue){
+    ready_queue.push_back(i);
+    std::stringstream event;
+    if (i->get_arrival_time() == time) {
+      i->set_estimated_remaining_time()=1/lambda;//set tau0;
+      event << "Process " << i->get_ID() << " arrived; added to ready queue";
+    } 
+    else {
+      i->set_estimated_remaining_time()=est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time())//
+      event << "Process " << i->get_ID()
+            << " completed I/O; added to ready queue";
+    }
+    print_event(event.str());
+  }
+  pre_ready_queue.clear();
+  std::sort(ready_queue.begin(), ready_queue.end(), compare_srt);
+}  
