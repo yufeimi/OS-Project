@@ -24,9 +24,7 @@ int main(int argc, char const *argv[]) {
   processes.push_back(A);
   processes.push_back(B);
   RR_scheduling RRsimulator(processes, 4, 100, false);
-  //SJF_scheduling SJFsimulator(processes, 4,0.001,0.5);
   RRsimulator.run();
-  //SJFsimulator.run();
   return 0;
 }
 
