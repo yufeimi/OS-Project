@@ -69,4 +69,21 @@ private:
   bool add;
 };
 
+class SJF_scheduling : public schedule_algorithm{
+public:
+  // Constructor. New arrival added to beggining when add is true
+  // end when false
+  SJF_scheduling(const std::vector<process> &p, const int t_cs, 
+                  const double lambda,const double alpha);
+  void run();
+private:
+  //update the est_tau
+  int est_tau(double tau,int t,alpha);//need const???
+  void perform_add_to_ready_queue();
+  //lamida for calculate tau0; 
+  double lambda;
+  //alpha is a parameter in the equation
+  double alpha;
+};
+
 #endif
