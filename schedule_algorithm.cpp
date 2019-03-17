@@ -3,7 +3,9 @@
 bool resolveTie(process_ptr i, process_ptr j) {
   return (i->get_ID() < j->get_ID());
 }
-
+bool compare_sjf(process_ptr a, process_ptr b){
+  return a->get_last_estimated_burst_time()<b->get_last_estimated_burst_time();
+}
 schedule_algorithm::schedule_algorithm(const std::vector<process> &p,
                                        const int t_cs)
     : processes(p), t_cs(t_cs), time(0), running(processes.end()) {
@@ -318,3 +320,87 @@ void RR_scheduling::perform_add_to_ready_queue() {
   }
   pre_ready_queue.clear();
 }
+void SJF_scheduling::SJF_scheduling(const std::vector<process> &p, const int t_cs, 
+                                    const double lambda,const double alpha);
+    ：schedule_algorithm(p,t_cs), lambda(lambda),alpha(alpha){}
+void SJF_scheduling::run(){
+  print_event("Simulator started for SJF");
+  int state=-2;
+  int cs=0;
+  while (terminated.size() < processes.size()){
+    do_blocking();
+    check_arrival();
+    if (state == 0 || state == -1) {
+      if (running != processes.end()) {
+        if (running->get_state() == 1)
+          prepare_add_to_ready_queue(running);
+        else if (running->get_state() == 0) {
+          blocked.insert(running);
+        } else {
+          terminated.insert(running);
+        }
+      }
+    }
+    perform_add_to_ready_queue();
+    if (state == 0) {
+      std::stringstream event;
+      event << "Process " << running->get_ID() << " completed a CPU burst; "
+            << running->get_remaining_CPU_bursts() << " to go";
+      print_event(event.str());
+    } else if (state == -1) {
+      std::stringstream event;
+      event << "Process " << running->get_ID() << " terminated";
+      print_event(event.str());
+    }
+    // Determine context switch
+    if (state != 1) {
+      if (!ready_queue.empty()) {
+        context_switch(*(ready_queue.begin()));
+        cs = 1;
+        state = 1;
+      } else if (state != -2) {
+        context_switch(processes.end());
+        cs = 1;
+        state = -2;
+      }
+    }
+    if (cs == 1) {
+      // time does not increment after context switch
+      cs = 0;
+      continue;
+    }
+    // Run the running process for 1 ms. If there is no running process
+    // then skip to next 1 ms.
+    if (running != processes.end()) {
+      state = running->run_for_1ms();
+    } else {
+      // no current running process
+      state = -2;
+    }
+    // time increment
+    ++time;
+  }
+  print_event("Simulator ended for SJF");
+}
+void SJF_scheduling::perform_add_to_ready_queue() {
+  for (auto i: pre_ready_queue){
+    ready_queue.push_back(i);
+    std::stringstream event;
+    if (i->get_arrival_time() == time) {
+      i->set_estimated_remaining_time()=1/lambda;//set tau0;
+      event << "Process " << i->get_ID() << " arrived; added to ready queue";
+    } 
+    else {
+      i->set_estimated_remaining_time()=est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time())//
+      event << "Process " << i->get_ID()
+            << " completed I/O; added to ready queue";
+    }
+    print_event(event.str());
+  }
+  pre_ready_queue.clear();
+  std::sort(ready_queue.begin(), ready_queue.end(), compare_sjf);
+}
+int SJF_scheduling::est_tau(double tau,int t){
+  double next_est=alpha*t+(1-alpha)*tau;
+  return next_est;
+}    
