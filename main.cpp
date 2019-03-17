@@ -23,8 +23,8 @@ int main(int argc, char const *argv[]) {
   process B(3,'B', {5, 25, 15, 30, 500});
   processes.push_back(A);
   processes.push_back(B);
-  RR_scheduling RRsimulator(processes, 4, 100, false);
-  RRsimulator.run();
+  SJF_scheduling SJFsimulator(processes, 4,0.01,0.5);
+  SJFsimulator.run();
   return 0;
 }
 

@@ -68,6 +68,7 @@ private:
   // New arrival is added to begginning when add is true
   bool add;
 };
+
 class SJF_scheduling : public schedule_algorithm{
 public:
   // Constructor. New arrival added to beggining when add is true
@@ -77,13 +78,15 @@ public:
   void run();
 private:
   //update the est_tau
-  int est_tau(double tau,int t,alpha);//need const???
+  int est_tau(double tau,int t);
   void perform_add_to_ready_queue();
   //lamida for calculate tau0; 
   double lambda;
   //alpha is a parameter in the equation
   double alpha;
 };
+
+/*
 class SRT_scheduling : public schedule_algorithm{
 public:
   SRT_scheduling(const std::vector<process> &p, const int t_cs, 
@@ -91,11 +94,11 @@ public:
   void run();
 private:
   //update the est_tau
-  int est_tau(double tau,int t,alpha);//need const???
+  int est_tau(double tau,int t);//need const???
   void perform_add_to_ready_queue();
   //lamida for calculate tau0; 
   double lambda;
   //alpha is a parameter in the equation
   double alpha;
-  };
+  };*/
 #endif

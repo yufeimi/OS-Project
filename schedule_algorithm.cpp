@@ -4,12 +4,12 @@ bool resolveTie(process_ptr i, process_ptr j) {
   return (i->get_ID() < j->get_ID());
 }
 bool compare_sjf(process_ptr a, process_ptr b){
-  return (a->get_last_estimated_burst_time()<b->get_last_estimated_burst_time())||
-          (a->get_last_estimated_burst_time()==b->get_last_estimated_burst_time()&&(a.get_ID()<b.get_ID()));
+  return ((a->get_last_estimated_burst_time()<b->get_last_estimated_burst_time())
+            ||((a->get_last_estimated_burst_time()==b->get_last_estimated_burst_time())&&(a->get_ID()<b->get_ID())));
 }
 bool compare_srt(process_ptr a, process_ptr b){
   return (a->get_estimated_remaining_time()<b->get_estimated_remaining_time())||
-          (a->get_estimated_remaining_time()==b->get_estimated_remaining_time()&&(a.get_ID()<b.get_ID()));
+          (a->get_estimated_remaining_time()==b->get_estimated_remaining_time()&&(a->get_ID()<b->get_ID()));
 }
 schedule_algorithm::schedule_algorithm(const std::vector<process> &p,
                                        const int t_cs)
@@ -325,8 +325,9 @@ void RR_scheduling::perform_add_to_ready_queue() {
   }
   pre_ready_queue.clear();
 }
-void SJF_scheduling::SJF_scheduling(const std::vector<process> &p, const int t_cs, 
-                                    const double lambda,const double alpha);
+
+SJF_scheduling::SJF_scheduling(const std::vector<process> &p, const int t_cs, 
+                                    const double lambda,const double alpha)
     :schedule_algorithm(p,t_cs), lambda(lambda),alpha(alpha){}
 void SJF_scheduling::run(){
   print_event("Simulator started for SJF");
@@ -392,23 +393,25 @@ void SJF_scheduling::perform_add_to_ready_queue() {
     ready_queue.push_back(i);
     std::stringstream event;
     if (i->get_arrival_time() == time) {
-      i->set_estimated_remaining_time()=1/lambda;//set tau0;
-      event << "Process " << i->get_ID() << " arrived; added to ready queue";
+      i->set_estimated_remaining_time(1/lambda);//set tau0;
+      event << "Process " << i->get_ID()<<" (tau "<<i->get_last_estimated_burst_time()<<"ms)" << " arrived; added to ready queue";
     } 
     else {
-      i->set_estimated_remaining_time()=est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time())//
+      i->set_estimated_remaining_time(est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time()));//
       event << "Process " << i->get_ID()
-            << " completed I/O; added to ready queue";
+            <<" (tau "<<i->get_last_estimated_burst_time()<<"ms)"<< " completed I/O; added to ready queue";
     }
     print_event(event.str());
   }
   pre_ready_queue.clear();
-  std::sort(ready_queue.begin(), ready_queue.end(), compare_sjf);
+  //std::sort(ready_queue.begin(), ready_queue.end(), compare_sjf);
 }
 int SJF_scheduling::est_tau(double tau,int t){
   double next_est=alpha*t+(1-alpha)*tau;
   return next_est;
 }  
+
+/*
 //SRT
 SRT_scheduling::SRT_scheduling(const std::vector<process> &p, const int t_cs,
                              const double lambda,const double alpha)
@@ -510,11 +513,11 @@ void SRT_scheduling::perform_add_to_ready_queue() {
     ready_queue.push_back(i);
     std::stringstream event;
     if (i->get_arrival_time() == time) {
-      i->set_estimated_remaining_time()=1/lambda;//set tau0;
+      i->set_estimated_remaining_time(1/lambda);//set tau0;
       event << "Process " << i->get_ID() << " arrived; added to ready queue";
     } 
     else {
-      i->set_estimated_remaining_time()=est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time())//
+      i->set_estimated_remaining_time(est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time()));//
       event << "Process " << i->get_ID()
             << " completed I/O; added to ready queue";
     }
@@ -522,4 +525,4 @@ void SRT_scheduling::perform_add_to_ready_queue() {
   }
   pre_ready_queue.clear();
   std::sort(ready_queue.begin(), ready_queue.end(), compare_srt);
-}  
+}  */
