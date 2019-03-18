@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <iostream>
 #include <list>
+#include <math.h>
 #include <set>
 #include <sstream>
 #include <string>
@@ -78,28 +79,31 @@ public:
   void run();
 
 private:
+  void perform_add_to_ready_queue();
   // update the est_tau
   int est_tau(double tau, int t);
-  void perform_add_to_ready_queue();
   // lamida for calculate tau0;
   double lambda;
   // alpha is a parameter in the equation
   double alpha;
 };
 
-/*
-class SRT_scheduling : public schedule_algorithm{
+class SRT_scheduling : public schedule_algorithm {
 public:
   SRT_scheduling(const std::vector<process> &p, const int t_cs,
-                  const double lambda,const double alpha);
+                 const double lambda, const double alpha);
   void run();
+
 private:
-  //update the est_tau
-  int est_tau(double tau,int t);//need const???
   void perform_add_to_ready_queue();
-  //lamida for calculate tau0;
+  // update the est_tau
+  int est_tau(double tau, int t);
+  // Check preemption in pre_ready_queue
+  process_ptr check_preemption();
+  // lamida for calculate tau0;
   double lambda;
-  //alpha is a parameter in the equation
+  // alpha is a parameter in the equation
   double alpha;
-  };*/
+};
+
 #endif

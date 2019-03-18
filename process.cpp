@@ -32,7 +32,7 @@ const int process::get_remaining_CPU_bursts() const {
 }
 
 const int process::preempted() const {
-  return (query_state(current_time - 1) && state);
+  return (current_time && query_state(current_time - 1) && state);
 }
 
 const int process::get_last_burst_time() const {
