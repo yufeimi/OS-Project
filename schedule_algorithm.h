@@ -69,34 +69,35 @@ private:
   bool add;
 };
 
-class SJF_scheduling : public schedule_algorithm{
+class SJF_scheduling : public schedule_algorithm {
 public:
   // Constructor. New arrival added to beggining when add is true
   // end when false
-  SJF_scheduling(const std::vector<process> &p, const int t_cs, 
-                  const double lambda,const double alpha);
+  SJF_scheduling(const std::vector<process> &p, const int t_cs,
+                 const double lambda, const double alpha);
   void run();
+
 private:
-  //update the est_tau
-  int est_tau(double tau,int t);
+  // update the est_tau
+  int est_tau(double tau, int t);
   void perform_add_to_ready_queue();
-  //lamida for calculate tau0; 
+  // lamida for calculate tau0;
   double lambda;
-  //alpha is a parameter in the equation
+  // alpha is a parameter in the equation
   double alpha;
 };
 
 /*
 class SRT_scheduling : public schedule_algorithm{
 public:
-  SRT_scheduling(const std::vector<process> &p, const int t_cs, 
+  SRT_scheduling(const std::vector<process> &p, const int t_cs,
                   const double lambda,const double alpha);
   void run();
 private:
   //update the est_tau
   int est_tau(double tau,int t);//need const???
   void perform_add_to_ready_queue();
-  //lamida for calculate tau0; 
+  //lamida for calculate tau0;
   double lambda;
   //alpha is a parameter in the equation
   double alpha;

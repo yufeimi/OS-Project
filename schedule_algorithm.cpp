@@ -3,13 +3,19 @@
 bool resolveTie(process_ptr i, process_ptr j) {
   return (i->get_ID() < j->get_ID());
 }
-bool compare_sjf(process_ptr a, process_ptr b){
-  return ((a->get_last_estimated_burst_time()<b->get_last_estimated_burst_time())
-            ||((a->get_last_estimated_burst_time()==b->get_last_estimated_burst_time())&&(a->get_ID()<b->get_ID())));
+bool compare_sjf(process_ptr a, process_ptr b) {
+  return ((a->get_last_estimated_burst_time() <
+           b->get_last_estimated_burst_time()) ||
+          ((a->get_last_estimated_burst_time() ==
+            b->get_last_estimated_burst_time()) &&
+           (a->get_ID() < b->get_ID())));
 }
-bool compare_srt(process_ptr a, process_ptr b){
-  return (a->get_estimated_remaining_time()<b->get_estimated_remaining_time())||
-          (a->get_estimated_remaining_time()==b->get_estimated_remaining_time()&&(a->get_ID()<b->get_ID()));
+bool compare_srt(process_ptr a, process_ptr b) {
+  return (a->get_estimated_remaining_time() <
+          b->get_estimated_remaining_time()) ||
+         (a->get_estimated_remaining_time() ==
+              b->get_estimated_remaining_time() &&
+          (a->get_ID() < b->get_ID()));
 }
 schedule_algorithm::schedule_algorithm(const std::vector<process> &p,
                                        const int t_cs)
@@ -326,14 +332,14 @@ void RR_scheduling::perform_add_to_ready_queue() {
   pre_ready_queue.clear();
 }
 
-SJF_scheduling::SJF_scheduling(const std::vector<process> &p, const int t_cs, 
-                                    const double lambda,const double alpha)
-    :schedule_algorithm(p,t_cs), lambda(lambda),alpha(alpha){}
-void SJF_scheduling::run(){
+SJF_scheduling::SJF_scheduling(const std::vector<process> &p, const int t_cs,
+                               const double lambda, const double alpha)
+    : schedule_algorithm(p, t_cs), lambda(lambda), alpha(alpha) {}
+void SJF_scheduling::run() {
   print_event("Simulator started for SJF");
-  int state=-2;
-  int cs=0;
-  while (terminated.size() < processes.size()){
+  int state = -2;
+  int cs = 0;
+  while (terminated.size() < processes.size()) {
     do_blocking();
     check_arrival();
     if (state == 0 || state == -1) {
@@ -389,27 +395,30 @@ void SJF_scheduling::run(){
   print_event("Simulator ended for SJF");
 }
 void SJF_scheduling::perform_add_to_ready_queue() {
-  for (auto i: pre_ready_queue){
+  for (auto i : pre_ready_queue) {
     ready_queue.push_back(i);
     std::stringstream event;
     if (i->get_arrival_time() == time) {
-      i->set_estimated_remaining_time(1/lambda);//set tau0;
-      event << "Process " << i->get_ID()<<" (tau "<<i->get_last_estimated_burst_time()<<"ms)" << " arrived; added to ready queue";
-    } 
-    else {
-      i->set_estimated_remaining_time(est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time()));//
-      event << "Process " << i->get_ID()
-            <<" (tau "<<i->get_last_estimated_burst_time()<<"ms)"<< " completed I/O; added to ready queue";
+      i->set_estimated_remaining_time(1 / lambda); // set tau0;
+      event << "Process " << i->get_ID() << " (tau "
+            << i->get_last_estimated_burst_time() << "ms)"
+            << " arrived; added to ready queue";
+    } else {
+      i->set_estimated_remaining_time(est_tau(
+          i->get_last_estimated_burst_time(), i->get_last_burst_time())); //
+      event << "Process " << i->get_ID() << " (tau "
+            << i->get_last_estimated_burst_time() << "ms)"
+            << " completed I/O; added to ready queue";
     }
     print_event(event.str());
   }
   pre_ready_queue.clear();
-  //std::sort(ready_queue.begin(), ready_queue.end(), compare_sjf);
+  // std::sort(ready_queue.begin(), ready_queue.end(), compare_sjf);
 }
-int SJF_scheduling::est_tau(double tau,int t){
-  double next_est=alpha*t+(1-alpha)*tau;
+int SJF_scheduling::est_tau(double tau, int t) {
+  double next_est = alpha * t + (1 - alpha) * tau;
   return next_est;
-}  
+}
 
 /*
 //SRT
@@ -432,32 +441,33 @@ void SRT_scheduling::run() {
     // Determine whether add the running process to ready_queue
     // or blocked by its state
     if (state == 0 || state == -1 ||
-        (time_running >= t_slice && !ready_queue.empty())) {//is here to determine?
-      if (running != processes.end()) {
-        if (running->get_state() == 1) {
+        (time_running >= t_slice && !ready_queue.empty())) {//is here to
+determine? if (running != processes.end()) { if (running->get_state() == 1) {
           std::stringstream event;
           event << "Time slice expired; process " << running->get_ID()
                 << " preempted with " << running->get_remaining_time()
                 << " ms to go";
           print_event(event.str());
           prepare_add_to_ready_queue(running);
-        } 
+        }
         else if (running->get_state() == 0) {
           blocked.insert(running);
-        } 
+        }
         else {
           terminated.insert(running);
         }
       }
     }
-    //compare the 1st one in pre_ready_queue and the 1st one in ready_queue is the same one or not;
-    std::sort(pre_ready_queue.begin(), pre_ready_queue.end(), compare_srt);//sort the pre_ready_queue first
-    std::string pre_first_ID=(*(pre_ready_queue.begin()))->get_ID();//ID for resolveTie
+    //compare the 1st one in pre_ready_queue and the 1st one in ready_queue is
+the same one or not; std::sort(pre_ready_queue.begin(), pre_ready_queue.end(),
+compare_srt);//sort the pre_ready_queue first std::string
+pre_first_ID=(*(pre_ready_queue.begin()))->get_ID();//ID for resolveTie
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
     perform_add_to_ready_queue();
     //get the ready_queue first ID;
-    std::string ready_first_ID=(*(pre_ready_queue.begin()))->get_ID();//if the pre_ready_first is the same one. then PREEMPTE.
+    std::string ready_first_ID=(*(pre_ready_queue.begin()))->get_ID();//if the
+pre_ready_first is the same one. then PREEMPTE.
     // Run the running process for 1 ms. If there is no running process
     // then skip to next 1 ms.
     if (state == 0) {
@@ -484,8 +494,8 @@ void SRT_scheduling::run() {
       }
     }
     // when arrived new process have the shortest remaining time,
-    if (pre_ready_first==ready_first && pre_first_ID==ready_first_ID) {//if their ID are the same one them preempt.
-      context_switch(*(ready_queue.begin()));
+    if (pre_ready_first==ready_first && pre_first_ID==ready_first_ID) {//if
+their ID are the same one them preempt. context_switch(*(ready_queue.begin()));
       time_running = 0;
       cs = 1;
       state = 1;
@@ -515,7 +525,7 @@ void SRT_scheduling::perform_add_to_ready_queue() {
     if (i->get_arrival_time() == time) {
       i->set_estimated_remaining_time(1/lambda);//set tau0;
       event << "Process " << i->get_ID() << " arrived; added to ready queue";
-    } 
+    }
     else {
       i->set_estimated_remaining_time(est_tau(i->get_last_estimated_burst_time(),i->get_last_burst_time()));//
       event << "Process " << i->get_ID()
