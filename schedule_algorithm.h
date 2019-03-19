@@ -3,6 +3,7 @@
 
 #include "process.h"
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <list>
 #include <math.h>
@@ -19,13 +20,14 @@ public:
   virtual void run() = 0;
 
 protected:
+  void write_stats(std::ofstream);
+  void print_overview();
   /* Call context switch. Note this process pressumes that
   this is the initial switch in for the incoming process and final
   switch out for outcoming process
   If this is not the initial switch in or final switch out,
   call wait_for_1ms(false) for t_cs/2 milisecond outside
   this function. */
-  void print_overview();
   void context_switch(process_ptr);
   void check_arrival();
   void do_waiting();
@@ -42,6 +44,12 @@ protected:
   std::set<process_ptr> blocked;
   std::set<process_ptr> terminated;
   std::vector<process_ptr> pre_ready_queue;
+  // variables for stats
+  int wait_time;
+  int n_wait;
+  int turnaround_time;
+  int n_cs;
+  int n_preemption;
 };
 
 class FCFS_scheduling : public schedule_algorithm {
@@ -107,6 +115,8 @@ private:
   double lambda;
   // alpha is a parameter in the equation
   double alpha;
+  //
+  process_ptr preempting_process;
 };
 
 #endif
