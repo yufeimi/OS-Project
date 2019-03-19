@@ -44,7 +44,7 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     std::stringstream event;
     event << "Process " << running->get_ID()
           << " switching out of CPU; will block on I/O until time "
-          << (running->get_remaining_time() + time) << "ms";
+          << (running->get_remaining_time() + time + t_cs / 2) << "ms";
     print_event(event.str());
   }
 
@@ -69,6 +69,18 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     running->wait_for_1ms(false);
     // Process in I/O burst proceed for t_cs
     do_blocking();
+    if (i == t_cs / 2 - 1) {
+      // Remove the running process
+      // Determine whether add the running process to ready_queue
+      // or block on I/O, or terminate it.
+      if (running->get_state() == 1) {
+        prepare_add_to_ready_queue(running);
+      } else if (running->get_state() == 0) {
+        blocked.insert(running);
+      } else if (running->get_state() == -1) {
+        terminated.insert(running);
+      }
+    }
     perform_add_to_ready_queue();
     time++;
   }
@@ -102,10 +114,16 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
 }
 
 void schedule_algorithm::check_arrival() {
-
   for (auto itr = processes.begin(); itr != processes.end(); ++itr) {
     if (itr->get_arrival_time() == time) {
       prepare_add_to_ready_queue(itr);
+    }
+  }
+  for (auto itr = blocked.begin(); itr != blocked.end(); ++itr) {
+    // If the I/O time is end then move it to ready_queue
+    if ((*itr)->get_state() == 1) {
+      blocked.erase(itr);
+      prepare_add_to_ready_queue(*itr);
     }
   }
 }
@@ -118,12 +136,7 @@ void schedule_algorithm::do_waiting() {
 
 void schedule_algorithm::do_blocking() {
   for (auto itr = blocked.begin(); itr != blocked.end(); ++itr) {
-    int state = (*itr)->block_for_1ms();
-    // If the I/O time is end then move it to ready_queue
-    if (state == 1) {
-      blocked.erase(itr);
-      prepare_add_to_ready_queue(*itr);
-    }
+    (*itr)->block_for_1ms();
   }
 }
 
@@ -150,27 +163,14 @@ void FCFS_scheduling::run() {
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // block processes on I/O for 1ms
-    do_blocking();
     // check if have any new processes have the same arrival time.
     check_arrival();
-    // remove the running process
-    // Determine whether add the running process to ready_queue
-    // or blocked by its state
-    if (state == 0 || state == -1) {
-      if (running != processes.end()) {
-        if (running->get_state() == 1)
-          prepare_add_to_ready_queue(running);
-        else if (running->get_state() == 0) {
-          blocked.insert(running);
-        } else {
-          terminated.insert(running);
-        }
-      }
-    }
+    // block processes on I/O for 1ms
+    do_blocking();
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
     perform_add_to_ready_queue();
+
     if (state == 0) {
       std::stringstream event;
       event << "Process " << running->get_ID() << " completed a CPU burst; "
@@ -240,30 +240,10 @@ void RR_scheduling::run() {
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // block processes on I/O for 1ms
-    do_blocking();
     // check if have any new processes have the same arrival time.
     check_arrival();
-    // remove the running process
-    // Determine whether add the running process to ready_queue
-    // or blocked by its state
-    if (state == 0 || state == -1 ||
-        (time_running >= t_slice && !ready_queue.empty())) {
-      if (running != processes.end()) {
-        if (running->get_state() == 1) {
-          std::stringstream event;
-          event << "Time slice expired; process " << running->get_ID()
-                << " preempted with " << running->get_remaining_time()
-                << " ms to go";
-          print_event(event.str());
-          prepare_add_to_ready_queue(running);
-        } else if (running->get_state() == 0) {
-          blocked.insert(running);
-        } else {
-          terminated.insert(running);
-        }
-      }
-    }
+    // block processes on I/O for 1ms
+    do_blocking();
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
     perform_add_to_ready_queue();
@@ -294,6 +274,11 @@ void RR_scheduling::run() {
     }
     // when time slice expires
     if (time_running >= t_slice && !ready_queue.empty()) {
+      std::stringstream event;
+      event << "Time slice expired; process " << running->get_ID()
+            << " preempted with " << running->get_remaining_time()
+            << " ms to go";
+      print_event(event.str());
       context_switch(*(ready_queue.begin()));
       time_running = 0;
       cs = 1;
@@ -350,19 +335,12 @@ void SJF_scheduling::run() {
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    do_blocking();
+    // check if have any new processes have the same arrival time.
     check_arrival();
-    if (state == 0 || state == -1) {
-      if (running != processes.end()) {
-        if (running->get_state() == 1)
-          prepare_add_to_ready_queue(running);
-        else if (running->get_state() == 0) {
-          blocked.insert(running);
-        } else {
-          terminated.insert(running);
-        }
-      }
-    }
+    // block processes on I/O for 1ms
+    do_blocking();
+    // loop for all the processes in the pre_ready_queue to push_back them
+    // into ready queue
     perform_add_to_ready_queue();
     if (state == 0) {
       std::stringstream event1, event2;
@@ -446,29 +424,20 @@ void SRT_scheduling::run() {
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // block processes on I/O for 1ms
-    do_blocking();
     // check if have any new processes have the same arrival time.
     check_arrival();
+    // block processes on I/O for 1ms
+    do_blocking();
     // remove the running process
     // Determine whether add the running process to ready_queue
     // or blocked by its state
     process_ptr preempting_process = check_preemption();
-    if (state == 0 || state == -1 || preempting_process != processes.end()) {
-      if (running != processes.end()) {
-        if (running->get_state() == 1) {
-          std::stringstream event;
-          event << "Process " << preempting_process->get_ID() << " (tau "
-                << preempting_process->get_estimated_remaining_time()
-                << "ms) will preempt " << running->get_ID();
-          print_event(event.str());
-          prepare_add_to_ready_queue(running);
-        } else if (running->get_state() == 0) {
-          blocked.insert(running);
-        } else {
-          terminated.insert(running);
-        }
-      }
+    if (preempting_process != processes.end()) {
+      std::stringstream event;
+      event << "Process " << preempting_process->get_ID() << " (tau "
+            << preempting_process->get_estimated_remaining_time()
+            << "ms) will preempt " << running->get_ID();
+      print_event(event.str());
     }
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
@@ -528,8 +497,7 @@ void SRT_scheduling::run() {
 
 void SRT_scheduling::perform_add_to_ready_queue() {
   for (auto i : pre_ready_queue) {
-    if (i == processes.end())
-    {
+    if (i == processes.end()) {
       continue;
     }
     ready_queue.push_back(i);
@@ -559,8 +527,7 @@ int SRT_scheduling::est_tau(double tau, int t) {
 }
 
 process_ptr SRT_scheduling::check_preemption() {
-  if (running == processes.end())
-  {
+  if (running == processes.end() || running->get_state() != 1) {
     return processes.end();
   }
   int remaining_time = running->get_estimated_remaining_time();
@@ -578,7 +545,7 @@ process_ptr SRT_scheduling::check_preemption() {
   }
   // remove the preempting process by replacing it by null itr
   if (return_value != processes.end()) {
-    for (auto & i : pre_ready_queue)
+    for (auto &i : pre_ready_queue)
       if (i == return_value) {
         i = processes.end();
       }

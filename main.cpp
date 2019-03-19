@@ -23,8 +23,9 @@ int main(int argc, char const *argv[]) {
   process B(0, 'B', {500, 20, 15, 30, 500});
   processes.push_back(A);
   processes.push_back(B);
+  // FCFS_scheduling simulator(processes, 4);
   SRT_scheduling simulator(processes, 4, 0.01, 0.5);
-  //RR_scheduling simulator(processes, 4, 100, false);
+  // RR_scheduling simulator(processes, 4, 100, false);
   simulator.run();
   return 0;
 }
