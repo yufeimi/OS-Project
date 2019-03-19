@@ -59,6 +59,8 @@ public:
   const int block_for_1ms();
   // Pinrt its burst time and io time
   void print();
+  // Print arrival time and burst number only
+  void print_overview();
   // Reset everything of this process
   void reset();
 

@@ -1,6 +1,7 @@
 #include "process.h"
 #include "schedule_algorithm.h"
 #include <assert.h>
+#include <cstring>
 #include <math.h>
 #include <vector>
 
@@ -14,19 +15,50 @@ int main(int argc, char const *argv[]) {
      argv[4] is n as the number of processes to simulate
      argv[5] is t_cs as time for context switch. (positive even number)
      argv[6] is alpha for estimation of next CPU burst time.
-     argv[7] is t_sice as the time slice value
+     argv[7] is t_slice as the time slice value
      argv[8] is rr_add is either BEGGINING or END. END is default
   */
-  // std::vector<process> processes = process_generator(70, 0.001, 3000, 10);
-  std::vector<process> processes;
-  process A(400, 'A', {10, 20, 30, 60, 480});
-  process B(0, 'B', {500, 20, 15, 30, 500});
-  processes.push_back(A);
-  processes.push_back(B);
-  // FCFS_scheduling simulator(processes, 4);
-  SRT_scheduling simulator(processes, 4, 0.01, 0.5);
-  // RR_scheduling simulator(processes, 4, 100, false);
-  simulator.run();
+  if (argc < 8) {
+    std::cerr << "Usage: ./main <seed> <lambda> <upper bound>"
+              << " <n> <t_cs> <alpha> <t_slice> <rr_add>(optional)\n";
+    return 1;
+  }
+  int s = atoi(argv[1]);
+  double lambda = atof(argv[2]);
+  int threshold = atoi(argv[3]);
+  int n = atoi(argv[4]);
+  int t_cs = atoi(argv[5]);
+  double alpha = atof(argv[6]);
+  int t_slice = atoi(argv[7]);
+  bool rr_add = false;
+  if (argc == 9) {
+    if (strcmp(argv[8], "END") == 0) {
+      rr_add = false;
+    } else if (strcmp(argv[8], "BEGGINING") == 0) {
+      rr_add = true;
+    } else {
+      std::cerr << "Usage: ./main <s> <lambda> <upper bound>"
+                << " <n> <t_cs> <alpha> <t_slice> <rr_add>(optional)\n";
+      return 1;
+    }
+  }
+  std::vector<process> processes = process_generator(s, lambda, threshold, n);
+  // std::vector<process> processes;
+  // process A(400, 'A', {10, 20, 30, 60, 480});
+  // process B(0, 'B', {500, 20, 15, 30, 500});
+  // processes.push_back(A);
+  // processes.push_back(B);
+  SJF_scheduling SJF_simulator(processes, t_cs, lambda, alpha);
+  SJF_simulator.run();
+  std::cout << std::endl;
+  SRT_scheduling SRT_simulator(processes, t_cs, lambda, alpha);
+  SRT_simulator.run();
+  std::cout << std::endl;
+  FCFS_scheduling FCFS_simulator(processes, t_cs);
+  FCFS_simulator.run();
+  std::cout << std::endl;
+  RR_scheduling RR_simulator(processes, t_cs, t_slice, rr_add);
+  RR_simulator.run();
   return 0;
 }
 
@@ -38,6 +70,7 @@ std::vector<process> process_generator(const int s, const double lambda,
   std::vector<process> processes;
   // Initialize the process ID
   char process_ID = 'A';
+  // no more than 26 processes to simulate
   assert(n > 0 && n < 27);
   for (int i = 0; i < n; ++i) {
     double r = drand48();

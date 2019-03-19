@@ -84,6 +84,11 @@ void process::print() {
   }
 }
 
+void process::print_overview() {
+  std::cout << "Process " << ID << " [NEW] (arrival time " << arrival_time
+            << " ms) " << time_sequence.size() / 2 + 1 << " CPU bursts\n";
+}
+
 void process::reset() {
   wait_time = 0;
   turnaround_time = 0;

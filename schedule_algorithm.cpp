@@ -32,20 +32,26 @@ schedule_algorithm::schedule_algorithm(const std::vector<process> &p,
   assert(t_cs % 2 == 0);
 }
 
-void schedule_algorithm::context_switch(process_ptr process_in) {
-  bool process_in_wait = false;
-  // Check if this process_in is in ready queue
-  if (process_in == *(ready_queue.begin())) {
-    process_in_wait = true;
-    ready_queue.pop_front();
+void schedule_algorithm::print_overview() {
+  for (auto i : processes) {
+    i.print_overview();
   }
+}
 
+void schedule_algorithm::context_switch(process_ptr process_in) {
   if (running != processes.end() && running->get_state() == 0) {
     std::stringstream event;
     event << "Process " << running->get_ID()
           << " switching out of CPU; will block on I/O until time "
           << (running->get_remaining_time() + time + t_cs / 2) << "ms";
     print_event(event.str());
+  }
+
+  bool process_in_wait = false;
+  // Check if this process_in is in ready queue
+  if (process_in == *(ready_queue.begin())) {
+    process_in_wait = true;
+    ready_queue.pop_front();
   }
 
   ++time;
@@ -63,7 +69,7 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     if (process_in_wait) {
       process_in->wait_for_1ms(true);
     }
-    // check if have any new processes have the same arrival time.
+    // check if any new processes have the same arrival time.
     check_arrival();
     // Process_out is not in the ready queue for the first half
     running->wait_for_1ms(false);
@@ -98,7 +104,7 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
   for (int i = start_time; i < t_cs / 2; i++) {
     // Processes in ready queue wait for t_cs
     do_waiting();
-    // check if have any new processes have the same arrival time.
+    // check if any new processes have the same arrival time.
     check_arrival();
     // Process_in is not in the ready queue for the second half
     running->wait_for_1ms(false);
@@ -108,8 +114,13 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     time++;
   }
   std::stringstream event;
-  event << "Process " << running->get_ID() << " started using the CPU for "
-        << running->get_remaining_time() << " ms burst";
+  if (!running->preempted()) {
+    event << "Process " << running->get_ID() << " started using the CPU for "
+          << running->get_remaining_time() << "ms burst";
+  } else {
+    event << "Process " << running->get_ID() << " started using the CPU with "
+          << running->get_remaining_time() << "ms remaining";
+  }
   print_event(event.str());
 }
 
@@ -146,12 +157,12 @@ void schedule_algorithm::prepare_add_to_ready_queue(
 };
 
 void schedule_algorithm::print_event(std::string event) {
-  std::cout << "time " << time << "ms: " << event << " [Q ";
+  std::cout << "time " << time << "ms: " << event << " [Q";
   for (auto i : ready_queue) {
-    std::cout << i->get_ID() << " ";
+    std::cout << " " << i->get_ID();
   }
   if (ready_queue.size() == 0)
-    std::cout << "<empty>";
+    std::cout << " <empty>";
   std::cout << "]\n";
 }
 
@@ -159,11 +170,12 @@ FCFS_scheduling::FCFS_scheduling(const std::vector<process> &p, const int t_cs)
     : schedule_algorithm(p, t_cs) {}
 
 void FCFS_scheduling::run() {
+  print_overview();
   print_event("Simulator started for FCFS");
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // check if have any new processes have the same arrival time.
+    // check if any new processes have the same arrival time.
     check_arrival();
     // block processes on I/O for 1ms
     do_blocking();
@@ -173,8 +185,10 @@ void FCFS_scheduling::run() {
 
     if (state == 0) {
       std::stringstream event;
+      std::string plural =
+          running->get_remaining_CPU_bursts() > 1 ? " bursts " : " burst ";
       event << "Process " << running->get_ID() << " completed a CPU burst; "
-            << running->get_remaining_CPU_bursts() << " to go";
+            << running->get_remaining_CPU_bursts() << plural << "to go";
       print_event(event.str());
     } else if (state == -1) {
       std::stringstream event;
@@ -233,14 +247,14 @@ RR_scheduling::RR_scheduling(const std::vector<process> &p, const int t_cs,
     : schedule_algorithm(p, t_cs), t_slice(t_slice), add(add) {}
 
 void RR_scheduling::run() {
+  print_overview();
   print_event("Simulator started for RR");
-
   // The time the current process is running for
   int time_running = 0;
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // check if have any new processes have the same arrival time.
+    // check if any new processes have the same arrival time.
     check_arrival();
     // block processes on I/O for 1ms
     do_blocking();
@@ -251,8 +265,10 @@ void RR_scheduling::run() {
     // then skip to next 1 ms.
     if (state == 0) {
       std::stringstream event;
+      std::string plural =
+          running->get_remaining_CPU_bursts() > 1 ? " bursts " : " burst ";
       event << "Process " << running->get_ID() << " completed a CPU burst; "
-            << running->get_remaining_CPU_bursts() << " to go";
+            << running->get_remaining_CPU_bursts() << plural << "to go";
       print_event(event.str());
     } else if (state == -1) {
       std::stringstream event;
@@ -277,12 +293,17 @@ void RR_scheduling::run() {
       std::stringstream event;
       event << "Time slice expired; process " << running->get_ID()
             << " preempted with " << running->get_remaining_time()
-            << " ms to go";
+            << "ms to go";
       print_event(event.str());
       context_switch(*(ready_queue.begin()));
       time_running = 0;
       cs = 1;
       state = 1;
+    } else if (time_running >= t_slice) {
+      std::stringstream event;
+      event << "Time slice expired; no preemption because ready queue is empty";
+      print_event(event.str());
+      time_running = 0;
     }
     if (cs == 1) {
       // time does not increment after context switch
@@ -331,6 +352,7 @@ SJF_scheduling::SJF_scheduling(const std::vector<process> &p, const int t_cs,
     : schedule_algorithm(p, t_cs), lambda(lambda), alpha(alpha) {}
 
 void SJF_scheduling::run() {
+  print_overview();
   print_event("Simulator started for SJF");
   int state = -2;
   int cs = 0;
@@ -344,8 +366,10 @@ void SJF_scheduling::run() {
     perform_add_to_ready_queue();
     if (state == 0) {
       std::stringstream event1, event2;
+      std::string plural =
+          running->get_remaining_CPU_bursts() > 1 ? " bursts " : " burst ";
       event1 << "Process " << running->get_ID() << " completed a CPU burst; "
-             << running->get_remaining_CPU_bursts() << " to go";
+             << running->get_remaining_CPU_bursts() << plural << "to go";
       print_event(event1.str());
       // Recalculate tau for the process that completes its burst
       int tau = est_tau(running->get_last_estimated_burst_time(),
@@ -420,11 +444,12 @@ SRT_scheduling::SRT_scheduling(const std::vector<process> &p, const int t_cs,
     : schedule_algorithm(p, t_cs), lambda(lambda), alpha(alpha) {}
 
 void SRT_scheduling::run() {
+  print_overview();
   print_event("Simulator started for SRT");
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // check if have any new processes have the same arrival time.
+    // check if any new processes have the same arrival time.
     check_arrival();
     // block processes on I/O for 1ms
     do_blocking();
@@ -432,13 +457,6 @@ void SRT_scheduling::run() {
     // Determine whether add the running process to ready_queue
     // or blocked by its state
     process_ptr preempting_process = check_preemption();
-    if (preempting_process != processes.end()) {
-      std::stringstream event;
-      event << "Process " << preempting_process->get_ID() << " (tau "
-            << preempting_process->get_estimated_remaining_time()
-            << "ms) will preempt " << running->get_ID();
-      print_event(event.str());
-    }
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
     perform_add_to_ready_queue();
@@ -446,8 +464,10 @@ void SRT_scheduling::run() {
     // then skip to next 1 ms.
     if (state == 0) {
       std::stringstream event1, event2;
+      std::string plural =
+          running->get_remaining_CPU_bursts() > 1 ? " bursts " : " burst ";
       event1 << "Process " << running->get_ID() << " completed a CPU burst; "
-             << running->get_remaining_CPU_bursts() << " to go";
+             << running->get_remaining_CPU_bursts() << plural << "to go";
       print_event(event1.str());
       int tau = est_tau(running->get_last_estimated_burst_time(),
                         running->get_last_burst_time());
@@ -463,6 +483,10 @@ void SRT_scheduling::run() {
     if (state != 1) {
       if (!ready_queue.empty()) {
         context_switch(*(ready_queue.begin()));
+        while (!ready_queue.empty() &&
+               ShorterRemainingTime(*(ready_queue.begin()), running)) {
+          ready_queue_preemption();
+        }
         cs = 1;
         state = 1;
       } else if (state != -2) {
@@ -474,6 +498,10 @@ void SRT_scheduling::run() {
     // when preemption happens
     if (preempting_process != processes.end()) {
       context_switch(preempting_process);
+      while (!ready_queue.empty() &&
+             ShorterRemainingTime(*(ready_queue.begin()), running)) {
+        ready_queue_preemption();
+      }
       cs = 1;
       state = 1;
     }
@@ -502,7 +530,7 @@ void SRT_scheduling::perform_add_to_ready_queue() {
     }
     ready_queue.push_back(i);
     std::stringstream event;
-    if (i->preempted()) {
+    if (i->preempted() || i == running) {
       continue;
     }
     if (i->get_arrival_time() == time) {
@@ -512,7 +540,8 @@ void SRT_scheduling::perform_add_to_ready_queue() {
             << i->get_last_estimated_burst_time() << "ms)"
             << " arrived; added to ready queue";
     } else {
-      event << "Process " << i->get_ID()
+      event << "Process " << i->get_ID() << " (tau "
+            << i->get_last_estimated_burst_time() << "ms)"
             << " completed I/O; added to ready queue";
     }
     print_event(event.str());
@@ -549,6 +578,65 @@ process_ptr SRT_scheduling::check_preemption() {
       if (i == return_value) {
         i = processes.end();
       }
+    std::stringstream event;
+    if (time == return_value->get_arrival_time()) {
+      event << "Process " << return_value->get_ID() << " (tau "
+            << return_value->get_estimated_remaining_time()
+            << "ms) will preempt " << running->get_ID();
+    } else {
+      event << "Process " << return_value->get_ID() << " (tau "
+            << return_value->get_estimated_remaining_time()
+            << "ms) completed I/O and will preempt " << running->get_ID();
+    }
+    print_event(event.str());
   }
   return return_value;
+}
+
+void SRT_scheduling::ready_queue_preemption() {
+  process_ptr preempting_process = ready_queue.front();
+  int remaining_time = preempting_process->get_estimated_remaining_time();
+  // check if have any new processes have the same arrival time.
+  check_arrival();
+  // block processes on I/O for 1ms
+  do_blocking();
+
+  for (auto i : pre_ready_queue) {
+    if (i->get_arrival_time() == time) {
+      // Set tau0 for new process
+      i->set_estimated_remaining_time(1 / lambda);
+    }
+    // Compare remainiing time and current remaining time
+    if (i->get_estimated_remaining_time() < remaining_time) {
+      remaining_time = i->get_estimated_remaining_time();
+      preempting_process = i;
+    }
+  }
+
+  std::stringstream event;
+  for (auto &i : pre_ready_queue) {
+    if (i == preempting_process) {
+      i = processes.end();
+    }
+    if (time == preempting_process->get_arrival_time()) {
+      event << "Process " << preempting_process->get_ID() << " (tau "
+            << preempting_process->get_estimated_remaining_time()
+            << "ms) will preempt " << running->get_ID();
+    } else {
+      event << "Process " << preempting_process->get_ID() << " (tau "
+            << preempting_process->get_estimated_remaining_time()
+            << "ms) completed I/O and will preempt " << running->get_ID();
+    }
+  }
+
+  if (preempting_process == *(ready_queue.begin())) {
+    event << "Process " << preempting_process->get_ID() << " (tau "
+          << preempting_process->get_estimated_remaining_time()
+          << "ms) will preempt " << running->get_ID();
+  }
+  print_event(event.str());
+
+  perform_add_to_ready_queue();
+
+  context_switch(preempting_process);
 }

@@ -25,6 +25,7 @@ protected:
   If this is not the initial switch in or final switch out,
   call wait_for_1ms(false) for t_cs/2 milisecond outside
   this function. */
+  void print_overview();
   void context_switch(process_ptr);
   void check_arrival();
   void do_waiting();
@@ -100,6 +101,8 @@ private:
   int est_tau(double tau, int t);
   // Check preemption in pre_ready_queue
   process_ptr check_preemption();
+  // Check a multiple preemption after context switch
+  void ready_queue_preemption();
   // lamida for calculate tau0;
   double lambda;
   // alpha is a parameter in the equation
