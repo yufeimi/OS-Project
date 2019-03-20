@@ -33,19 +33,25 @@ schedule_algorithm::schedule_algorithm(const std::vector<process> &p,
   assert(t_cs % 2 == 0);
 }
 
-void schedule_algorithm::write_stats(std::ofstream file) {
+void schedule_algorithm::write_stats(std::ofstream &file) {
   // compute CPU burst time
   double CPU_burst_time = 0;
   double CPU_num = 0;
   for (auto i : processes) {
     for (unsigned int j = 0; j < i.get_time_sequence().size(); ++j) {
-      if (j % 2) {
+      if (j % 2 == 0) {
         CPU_burst_time += i.get_time_sequence()[j];
         CPU_num += 1;
       }
     }
   }
   // Output
+  file << std::setprecision(3) << std::fixed;
+  file << "-- average CPU burst time: " << CPU_burst_time / CPU_num << " ms\n"
+       << "-- average wait time: " << wait_time / n_wait << " ms\n"
+       << "-- average turnaround time: " << turnaround_time / CPU_num << " ms\n"
+       << "-- total number of context switches: " << n_cs << "\n"
+       << "-- total number of preemptions: " << n_preemption << "\n";
 }
 
 void schedule_algorithm::print_overview() {
@@ -55,6 +61,11 @@ void schedule_algorithm::print_overview() {
 }
 
 void schedule_algorithm::context_switch(process_ptr process_in) {
+  // Calculate turnaround time for process that is exiting
+  if (running != processes.end()) {
+    turnaround_time += t_cs / 2;
+  }
+
   if (running != processes.end() && running->get_state() == 0) {
     std::stringstream event;
     event << "Process " << running->get_ID()
@@ -78,29 +89,31 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     } else {
       start_time = 0;
     }
-    // Processes in ready queue wait for t_cs
-    do_waiting();
     // check if any new processes have the same arrival time.
     check_arrival();
     // Process_out is not in the ready queue for the first half
     running->wait_for_1ms(false);
     // Process in I/O burst proceed for t_cs
     do_blocking();
-    if (i == t_cs / 2 - 1) {
+    perform_add_to_ready_queue();
+    // Processes in ready queue wait for t_cs
+    do_waiting();
+    time++;
+  }
+
+  if (running != processes.end()) {
       // Remove the running process
       // Determine whether add the running process to ready_queue
       // or block on I/O, or terminate it.
-      if (running->get_state() == 1) {
-        prepare_add_to_ready_queue(running);
-      } else if (running->get_state() == 0) {
-        blocked.insert(running);
-      } else if (running->get_state() == -1) {
-        terminated.insert(running);
-      }
+    if (running->get_state() == 1) {
+      prepare_add_to_ready_queue(running);
+    } else if (running->get_state() == 0) {
+      blocked.insert(running);
+    } else if (running->get_state() == -1) {
+      terminated.insert(running);
     }
-    perform_add_to_ready_queue();
-    time++;
   }
+
 
   // Check if the process in has changed since the switch out
   if (process_in == processes.end()) {
@@ -108,11 +121,10 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     return;
   }
 
+
   // Note extra turnaround time should be added if this is NOT
   // the initial context switch!
   for (int i = start_time; i < t_cs / 2; i++) {
-    // Processes in ready queue wait for t_cs
-    do_waiting();
     // check if any new processes have the same arrival time.
     check_arrival();
     // Process in I/O burst proceed for t_cs
@@ -129,10 +141,16 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
       }
       // Replace the running process
       running = process_in;
+      // Calculate time for incoming process
+      if (!running->preempted()) {
+        turnaround_time += t_cs / 2;
+      }
     } else {
       // Process_in is not in the ready queue for the second half
       running->wait_for_1ms(false);
     }
+    // Processes in ready queue wait for t_cs
+    do_waiting();
     time++;
   }
   std::stringstream event;
@@ -143,6 +161,7 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     event << "Process " << running->get_ID() << " started using the CPU with "
           << running->get_remaining_time() << "ms remaining";
   }
+  ++n_cs;
   print_event(event.str());
 }
 
@@ -163,7 +182,12 @@ void schedule_algorithm::check_arrival() {
 
 void schedule_algorithm::do_waiting() {
   for (auto itr = ready_queue.begin(); itr != ready_queue.end(); ++itr) {
+    if (running == processes.end() && itr == ready_queue.begin()) {
+      continue;
+    }
     (*itr)->wait_for_1ms(true);
+    wait_time += 1;
+    turnaround_time += 1;
   }
 }
 
@@ -219,6 +243,8 @@ void FCFS_scheduling::run() {
     // loop for all the processes in the pre_ready_queue to push_back them
     // into ready queue
     perform_add_to_ready_queue();
+    // all processes in ready queue wait for 1ms
+    do_waiting();
 
     // Determine context switch
     if (state != 1) {
@@ -241,6 +267,7 @@ void FCFS_scheduling::run() {
     // then skip to next 1 ms.
     if (running != processes.end()) {
       state = running->run_for_1ms();
+      turnaround_time += 1;
     } else {
       // no current running process
       state = -2;
@@ -263,6 +290,7 @@ void FCFS_scheduling::perform_add_to_ready_queue() {
             << " completed I/O; added to ready queue";
     }
     print_event(event.str());
+    n_wait += 1;
   }
   pre_ready_queue.clear();
 }
@@ -279,15 +307,6 @@ void RR_scheduling::run() {
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // check if any new processes have the same arrival time.
-    check_arrival();
-    // block processes on I/O for 1ms
-    do_blocking();
-    // loop for all the processes in the pre_ready_queue to push_back them
-    // into ready queue
-    perform_add_to_ready_queue();
-    // Run the running process for 1 ms. If there is no running process
-    // then skip to next 1 ms.
     if (state == 0) {
       std::stringstream event;
       std::string plural =
@@ -300,6 +319,15 @@ void RR_scheduling::run() {
       event << "Process " << running->get_ID() << " terminated";
       print_event(event.str());
     }
+    // check if any new processes have the same arrival time.
+    check_arrival();
+    // block processes on I/O for 1ms
+    do_blocking();
+    // loop for all the processes in the pre_ready_queue to push_back them
+    // into ready queue
+    perform_add_to_ready_queue();
+    // all processes in ready queue wait for 1ms
+    do_waiting();
     if (state != 1) {
       if (!ready_queue.empty()) {
         context_switch(*(ready_queue.begin()));
@@ -324,6 +352,7 @@ void RR_scheduling::run() {
       time_running = 0;
       cs = 1;
       state = 1;
+      ++n_preemption;
     } else if (time_running >= t_slice) {
       std::stringstream event;
       event << "Time slice expired; no preemption because ready queue is empty";
@@ -339,6 +368,7 @@ void RR_scheduling::run() {
     // then skip to next 1 ms.
     if (running != processes.end()) {
       state = running->run_for_1ms();
+      turnaround_time += 1;
       ++time_running;
     } else {
       // no current running process
@@ -360,6 +390,7 @@ void RR_scheduling::perform_add_to_ready_queue() {
     if (i->preempted()) {
       continue;
     }
+    n_wait += 1;
     std::stringstream event;
     if (i->get_arrival_time() == time) {
       event << "Process " << i->get_ID() << " arrived; added to ready queue";
@@ -382,13 +413,6 @@ void SJF_scheduling::run() {
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // check if have any new processes have the same arrival time.
-    check_arrival();
-    // block processes on I/O for 1ms
-    do_blocking();
-    // loop for all the processes in the pre_ready_queue to push_back them
-    // into ready queue
-    perform_add_to_ready_queue();
     if (state == 0) {
       std::stringstream event1, event2;
       std::string plural =
@@ -408,6 +432,15 @@ void SJF_scheduling::run() {
       event << "Process " << running->get_ID() << " terminated";
       print_event(event.str());
     }
+    // check if have any new processes have the same arrival time.
+    check_arrival();
+    // block processes on I/O for 1ms
+    do_blocking();
+    // loop for all the processes in the pre_ready_queue to push_back them
+    // into ready queue
+    perform_add_to_ready_queue();
+    // all processes in ready queue wait for 1ms
+    do_waiting();
     // Determine context switch
     if (state != 1) {
       if (!ready_queue.empty()) {
@@ -429,6 +462,7 @@ void SJF_scheduling::run() {
     // then skip to next 1 ms.
     if (running != processes.end()) {
       state = running->run_for_1ms();
+      turnaround_time += 1;
     } else {
       // no current running process
       state = -2;
@@ -456,6 +490,7 @@ void SJF_scheduling::perform_add_to_ready_queue() {
             << " completed I/O; added to ready queue";
     }
     print_event(event.str());
+    n_wait += 1;
   }
   pre_ready_queue.clear();
 }
@@ -476,19 +511,6 @@ void SRT_scheduling::run() {
   int state = -2;
   int cs = 0;
   while (terminated.size() < processes.size()) {
-    // check if any new processes have the same arrival time.
-    check_arrival();
-    // block processes on I/O for 1ms
-    do_blocking();
-    // remove the running process
-    // Determine whether add the running process to ready_queue
-    // or blocked by its state
-    preempting_process = check_preemption();
-    // loop for all the processes in the pre_ready_queue to push_back them
-    // into ready queue
-    perform_add_to_ready_queue();
-    // Run the running process for 1 ms. If there is no running process
-    // then skip to next 1 ms.
     if (state == 0) {
       std::stringstream event1, event2;
       std::string plural =
@@ -507,6 +529,19 @@ void SRT_scheduling::run() {
       event << "Process " << running->get_ID() << " terminated";
       print_event(event.str());
     }
+    // check if any new processes have the same arrival time.
+    check_arrival();
+    // block processes on I/O for 1ms
+    do_blocking();
+    // remove the running process
+    // Determine whether add the running process to ready_queue
+    // or blocked by its state
+    preempting_process = check_preemption();
+    // loop for all the processes in the pre_ready_queue to push_back them
+    // into ready queue
+    perform_add_to_ready_queue();
+    // all processes in ready queue wait for 1ms
+    do_waiting();
     if (state != 1) {
       if (!ready_queue.empty()) {
         context_switch(*(ready_queue.begin()));
@@ -524,10 +559,12 @@ void SRT_scheduling::run() {
     }
     // when preemption happens
     if (preempting_process != processes.end()) {
+      ++n_preemption;
       context_switch(preempting_process);
       while (!ready_queue.empty() &&
              ShorterRemainingTime(*(ready_queue.begin()), running)) {
         ready_queue_preemption();
+        ++n_preemption;
       }
       cs = 1;
       state = 1;
@@ -541,6 +578,7 @@ void SRT_scheduling::run() {
     // then skip to next 1 ms.
     if (running != processes.end()) {
       state = running->run_for_1ms();
+      turnaround_time += 1;
     } else {
       // no current running process
       state = -2;
@@ -554,6 +592,9 @@ void SRT_scheduling::perform_add_to_ready_queue() {
   for (auto i : pre_ready_queue) {
     if (i == processes.end()) {
       continue;
+    }
+    if (i != preempting_process) {
+      n_wait += 1;
     }
     ready_queue.push_back(i);
     std::stringstream event;

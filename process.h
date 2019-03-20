@@ -47,6 +47,8 @@ public:
   const std::vector<int> &get_time_sequence() const { return time_sequence; };
   // Set the estimated remaining time
   void set_estimated_remaining_time(const int t);
+  // reset wait time
+  void reset_wait_time() { wait_time = 0; };
   /* Run for 1 ms. Returns the state after running 1ms:
   1 for CPU and 0 for IO. If the preocess ends then return -1*/
   const int run_for_1ms();

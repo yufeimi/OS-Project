@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <list>
 #include <math.h>
 #include <set>
@@ -18,9 +19,9 @@ class schedule_algorithm {
 public:
   schedule_algorithm(const std::vector<process> &, const int);
   virtual void run() = 0;
+  void write_stats(std::ofstream &);
 
 protected:
-  void write_stats(std::ofstream);
   void print_overview();
   /* Call context switch. Note this process pressumes that
   this is the initial switch in for the incoming process and final
@@ -45,9 +46,9 @@ protected:
   std::set<process_ptr> terminated;
   std::vector<process_ptr> pre_ready_queue;
   // variables for stats
-  int wait_time;
-  int n_wait;
-  int turnaround_time;
+  double wait_time;
+  double n_wait;
+  double turnaround_time;
   int n_cs;
   int n_preemption;
 };

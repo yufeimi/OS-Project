@@ -1,6 +1,7 @@
 #include "process.h"
 #include "schedule_algorithm.h"
 #include <assert.h>
+#include <fstream>
 #include <cstring>
 #include <math.h>
 #include <vector>
@@ -59,6 +60,17 @@ int main(int argc, char const *argv[]) {
   std::cout << std::endl;
   RR_scheduling RR_simulator(processes, t_cs, t_slice, rr_add);
   RR_simulator.run();
+
+  // Write stats to file
+  std::ofstream file("simout.txt");
+  file << "Algorithm SJF\n";
+  SJF_simulator.write_stats(file);
+  file << "Algorithm SRT\n";
+  SRT_simulator.write_stats(file);
+  file << "Algorithm FCFS\n";
+  FCFS_simulator.write_stats(file);
+  file << "Algorithm RR\n";
+  RR_simulator.write_stats(file);
   return 0;
 }
 
