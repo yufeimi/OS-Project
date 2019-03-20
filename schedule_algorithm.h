@@ -4,8 +4,8 @@
 #include "process.h"
 #include <algorithm>
 #include <fstream>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <list>
 #include <math.h>
 #include <set>
@@ -36,7 +36,6 @@ protected:
   void prepare_add_to_ready_queue(process_ptr);
   void print_event(const std::string);
   virtual void perform_add_to_ready_queue() = 0;
-  // virtual void preempt() = 0;
   std::vector<process> processes;
   const int t_cs;
   int time;

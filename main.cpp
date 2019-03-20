@@ -1,8 +1,8 @@
 #include "process.h"
 #include "schedule_algorithm.h"
 #include <assert.h>
-#include <fstream>
 #include <cstring>
+#include <fstream>
 #include <math.h>
 #include <vector>
 
@@ -71,6 +71,7 @@ int main(int argc, char const *argv[]) {
   FCFS_simulator.write_stats(file);
   file << "Algorithm RR\n";
   RR_simulator.write_stats(file);
+  file.close();
   return 0;
 }
 

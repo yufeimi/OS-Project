@@ -102,9 +102,9 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
   }
 
   if (running != processes.end()) {
-      // Remove the running process
-      // Determine whether add the running process to ready_queue
-      // or block on I/O, or terminate it.
+    // Remove the running process
+    // Determine whether add the running process to ready_queue
+    // or block on I/O, or terminate it.
     if (running->get_state() == 1) {
       prepare_add_to_ready_queue(running);
     } else if (running->get_state() == 0) {
@@ -114,13 +114,11 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     }
   }
 
-
   // Check if the process in has changed since the switch out
   if (process_in == processes.end()) {
     running = processes.end();
     return;
   }
-
 
   // Note extra turnaround time should be added if this is NOT
   // the initial context switch!
@@ -129,25 +127,30 @@ void schedule_algorithm::context_switch(process_ptr process_in) {
     check_arrival();
     // Process in I/O burst proceed for t_cs
     do_blocking();
-    perform_add_to_ready_queue();
+    if (i > start_time || start_time == 0) {
+      perform_add_to_ready_queue();
+    }
     // Do these i the first loop
     if (i == start_time) {
       if (process_in_wait) {
         // Check if the process in has changed since the switch out
         if (process_in != *(ready_queue.begin())) {
           process_in = *(ready_queue.begin());
+          // wait_time -= process_in->get_wait_time();
+          // turnaround_time -= process_in->get_wait_time();
         }
         ready_queue.pop_front();
       }
       // Replace the running process
       running = process_in;
       // Calculate time for incoming process
-      if (!running->preempted()) {
-        turnaround_time += t_cs / 2;
-      }
+      turnaround_time += t_cs / 2;
     } else {
       // Process_in is not in the ready queue for the second half
       running->wait_for_1ms(false);
+    }
+    if (i == start_time && start_time == 1) {
+      perform_add_to_ready_queue();
     }
     // Processes in ready queue wait for t_cs
     do_waiting();
@@ -548,6 +551,7 @@ void SRT_scheduling::run() {
         while (!ready_queue.empty() &&
                ShorterRemainingTime(*(ready_queue.begin()), running)) {
           ready_queue_preemption();
+          ++n_preemption;
         }
         cs = 1;
         state = 1;
@@ -644,10 +648,13 @@ process_ptr SRT_scheduling::check_preemption() {
   }
   // remove the preempting process by replacing it by null itr
   if (return_value != processes.end()) {
-    for (auto &i : pre_ready_queue)
+    for (auto &i : pre_ready_queue) {
       if (i == return_value) {
-        // i = processes.end();
+        i = processes.end();
       }
+    }
+    ready_queue.push_back(return_value);
+    ready_queue.sort(ShorterRemainingTime);
     std::stringstream event;
     if (time == return_value->get_arrival_time()) {
       event << "Process " << return_value->get_ID() << " (tau "
@@ -687,6 +694,8 @@ void SRT_scheduling::ready_queue_preemption() {
   for (auto &i : pre_ready_queue) {
     if (i == preempting_process) {
       i = processes.end();
+      ready_queue.push_back(preempting_process);
+      ready_queue.sort(ShorterRemainingTime);
     }
     if (time == preempting_process->get_arrival_time()) {
       event << "Process " << preempting_process->get_ID() << " (tau "

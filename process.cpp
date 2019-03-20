@@ -85,8 +85,10 @@ void process::print() {
 }
 
 void process::print_overview() {
+  std::string plural = time_sequence.size() > 1 ? " bursts" : " burst";
   std::cout << "Process " << ID << " [NEW] (arrival time " << arrival_time
-            << " ms) " << time_sequence.size() / 2 + 1 << " CPU bursts\n";
+            << " ms) " << time_sequence.size() / 2 + 1 << " CPU" << plural
+            << std::endl;
 }
 
 void process::reset() {
@@ -117,6 +119,7 @@ const int process::proceed() {
     if (next) {
       // Reset turnaround time
       turnaround_time = 0;
+      wait_time = 0;
     }
     // Calculate remaining time
     remaining_time = 0;
