@@ -717,5 +717,7 @@ void SRT_scheduling::ready_queue_preemption() {
 
   perform_add_to_ready_queue();
 
+  do_waiting();
+
   context_switch(preempting_process);
 }
