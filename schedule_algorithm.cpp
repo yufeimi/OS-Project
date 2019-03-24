@@ -45,10 +45,11 @@ void schedule_algorithm::write_stats(std::ofstream &file) {
       }
     }
   }
+
   // Output
   file << std::setprecision(3) << std::fixed;
   file << "-- average CPU burst time: " << CPU_burst_time / CPU_num << " ms\n"
-       << "-- average wait time: " << wait_time / n_wait << " ms\n"
+       << "-- average wait time: " << wait_time / CPU_num << " ms\n"
        << "-- average turnaround time: " << turnaround_time / CPU_num << " ms\n"
        << "-- total number of context switches: " << n_cs << "\n"
        << "-- total number of preemptions: " << n_preemption << "\n";
