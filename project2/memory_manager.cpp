@@ -80,18 +80,25 @@ void memory_manager::remove(allocation_ptr to_be_removed) {
   // partitions!). If not, create a new partition.
   frame end_location = start_location;
   end_location += psize - 1;
+  bool adjacent_partition = false;
   for (auto& i : partitions) {
     // If there is a partition before
     if (i.first + i.second - 1 == start_location) {
       i.second += psize;
+      adjacent_partition = true;
       break;
     }
     // If there is a parition after
     else if (i.first == (end_location + 1)) {
       i.second += psize;
       i.first -= psize;
+      adjacent_partition = true;
       break;
     }
+  }
+  // If no adjacent partition then create a new partition
+  if (!adjacent_partition) {
+    partitions.push_back({start_location, psize});
   }
   for (frame i = start_location; i < end_location + 1; ++i) {
     memory[i] = '.';
@@ -102,6 +109,7 @@ void memory_manager::remove(allocation_ptr to_be_removed) {
   for (auto i = partitions.begin(); i != partitions.end(); ++i) {
     auto tmp = i;
     if (i->first + i->second == (++tmp)->first) {
+      i->second += tmp->second;
       partitions.erase(tmp);
     }
   }
@@ -109,6 +117,27 @@ void memory_manager::remove(allocation_ptr to_be_removed) {
 
 int memory_manager::defragmentation() {
   int total_time = 0;
+  bool complete = false;
+  while (!complete) {
+    partitions.sort(compare_partitions);
+    for (auto& p : partitions) {
+      if (p.first + p.second < (size_t)memory_size &&
+          memory[p.first + p.second] != '.') {
+        // Find the allocation after it
+        for (auto a = allocations.begin(); a != allocations.end(); ++a) {
+          auto [location, process, psize] = *a;
+          if (location == p.first + p.second) {
+            remove(a);
+            add(p.first, process, psize);
+            total_time += psize * t_memmove;
+            break;
+          }
+        }
+        break;
+      }
+      if (p.first + p.second == (size_t)memory_size) complete = true;
+    }
+  }
   return total_time;
 }
 
@@ -132,9 +161,21 @@ void memory_manager::print_memory() {
 void memory_manager::run(algorithm algo) {
   auto itr = processes.begin();
   add(0, itr, itr->size);
-  ++itr;
-  add(5, itr, itr->size);
   print_memory();
+  for (auto p : partitions) {
+    std::cout << p.first << " " << p.second << std::endl;
+  }
+  ++itr;
+  add(partitions.begin()->first, itr, itr->size);
+  print_memory();
+  for (auto p : partitions) {
+    std::cout << p.first << " " << p.second << std::endl;
+  }
   remove(++allocations.begin());
+  print_memory();
+  for (auto p : partitions) {
+    std::cout << p.first << " " << p.second << std::endl;
+  }
+  defragmentation();
   print_memory();
 }
