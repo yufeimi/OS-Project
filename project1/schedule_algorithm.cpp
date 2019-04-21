@@ -207,8 +207,7 @@ void schedule_algorithm::prepare_add_to_ready_queue(
 };
 
 void schedule_algorithm::print_event(std::string event) {
-  if (time < 1000 || event.find("terminated") != std::string::npos ||
-      event.find("Simulator") != std::string::npos) {
+  if (0) {
     std::cout << "time " << time << "ms: " << event << " [Q";
     for (auto i : ready_queue) {
       std::cout << " " << i->get_ID();

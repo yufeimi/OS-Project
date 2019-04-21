@@ -17,7 +17,7 @@ int main(int argc, char const *argv[]) {
      argv[5] is t_cs as time for context switch. (positive even number)
      argv[6] is alpha for estimation of next CPU burst time.
      argv[7] is t_slice as the time slice value
-     argv[8] is rr_add is either BEGGINING or END. END is default
+     argv[8] is rr_add is either BEGINNING or END. END is default
   */
   if (argc < 8) {
     std::cerr << "Usage: ./main <seed> <lambda> <upper bound>"
@@ -35,7 +35,7 @@ int main(int argc, char const *argv[]) {
   if (argc == 9) {
     if (strcmp(argv[8], "END") == 0) {
       rr_add = false;
-    } else if (strcmp(argv[8], "BEGGINING") == 0) {
+    } else if (strcmp(argv[8], "BEGINNING") == 0) {
       rr_add = true;
     } else {
       std::cerr << "Usage: ./main <s> <lambda> <upper bound>"
@@ -44,11 +44,7 @@ int main(int argc, char const *argv[]) {
     }
   }
   std::vector<process> processes = process_generator(s, lambda, threshold, n);
-  // std::vector<process> processes;
-  // process A(400, 'A', {10, 20, 30, 60, 480});
-  // process B(0, 'B', {500, 20, 15, 30, 500});
-  // processes.push_back(A);
-  // processes.push_back(B);
+
   SJF_scheduling SJF_simulator(processes, t_cs, lambda, alpha);
   SJF_simulator.run();
   std::cout << std::endl;
