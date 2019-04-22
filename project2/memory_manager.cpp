@@ -4,6 +4,21 @@ bool compare_partitions(std::pair<frame, int> a, std::pair<frame, int> b) {
   return a < b;
 }
 
+bool compare_events(std::tuple<int, process_ptr, bool> a,
+                    std::tuple<int, process_ptr, bool> b) {
+  int time_a = std::get<0>(a);
+  int time_b = std::get<0>(b);
+  if (time_a < time_b) return true;
+  if (time_a > time_b) return false;
+  bool inout_a = std::get<2>(a);
+  bool inout_b = std::get<2>(b);
+  if (!inout_a && inout_b) return true;
+  if (!inout_b && inout_a) return false;
+  process_ptr p_a = std::get<1>(a);
+  process_ptr p_b = std::get<1>(b);
+  return (p_a->ID < p_b->ID);
+}
+
 process::process(const char ID, const int size,
                  std::list<std::pair<int, int>> sequence)
     : ID(ID), size(size) {
@@ -22,27 +37,36 @@ void process::delay(const int time) {
 
 void process::operator=(process p) { this->time_sequence = p.time_sequence; }
 
-memory_manager::memory_manager(std::vector<process>& processes_at_start,
+memory_manager::memory_manager(std::vector<process>& processes,
                                const int m_size, const int line_length,
                                const int t_memmove)
-    : processes_at_start(processes),
+    : processes(processes),
       time(0),
       memory_size(m_size),
       line_length(line_length),
       t_memmove(t_memmove) {
-  processes = processes_at_start;
   this->reset();
 }
 
 void memory_manager::reset() {
-  processes.clear();
-  processes = processes_at_start;
   time = 0;
   allocations.clear();
   partitions.clear();
   partitions.push_front({0, memory_size});
   memory.clear();
   memory.resize(memory_size, '.');
+  construct_time_table();
+}
+
+void memory_manager::construct_time_table() {
+  time_table.clear();
+  for (auto p = processes.begin(); p != processes.end(); ++p) {
+    for (auto i : p->time_sequence) {
+      time_table.push_back(std::make_tuple(i.first, p, true));
+      time_table.push_back(std::make_tuple(i.first + i.second, p, false));
+    }
+  }
+  time_table.sort(compare_events);
 }
 
 void memory_manager::add(frame location, process_ptr p, int allocation_size) {
@@ -125,7 +149,9 @@ int memory_manager::defragmentation() {
           memory[p.first + p.second] != '.') {
         // Find the allocation after it
         for (auto a = allocations.begin(); a != allocations.end(); ++a) {
-          auto [location, process, psize] = *a;
+          size_t location = std::get<0>(*a);
+          process_ptr process = std::get<1>(*a);
+          size_t psize = std::get<2>(*a);
           if (location == p.first + p.second) {
             remove(a);
             add(p.first, process, psize);

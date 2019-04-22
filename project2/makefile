@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-Wall -Werror -std=c++17
+CXXFLAGS=-Wall -Werror -std=c++11
 TARGET=./main
 
 SRC=main.cpp memory_manager.cpp

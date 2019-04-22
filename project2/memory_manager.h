@@ -1,3 +1,5 @@
+#ifndef MEMORYMANAGER
+#define MEMORYMANAGER
 #include <assert.h>
 #include <iostream>
 #include <list>
@@ -24,9 +26,9 @@ struct process {
   // Delay all the process by an amount of time.
   void delay(const int);
   // Process ID. A, B, C, etc.
-  const char ID;
+  char ID;
   // Memory allocation size.
-  const int size;
+  int size;
   // Stores a list of arrival_time/duration.
   std::list<std::pair<int, int>> time_sequence;
 };
@@ -43,6 +45,8 @@ class memory_manager {
   void run(algorithm algo);
 
  private:
+  // Construct the time table.
+  void construct_time_table();
   // Add a memory allocation to the physical memory
   void add(frame, process_ptr, int);
   // Remove a memory allocation from the physical memory
@@ -53,9 +57,6 @@ class memory_manager {
   void print_memory();
   // A vector storing all the processes.
   std::vector<process> processes;
-  // A vector stroing all the processes at the start status (i.e., no execution
-  // performed).
-  const std::vector<process> processes_at_start;
   // Physical memory "A-Z" for allocated memory frame ID. "." for spare memory
   // frame
   std::vector<char> memory;
@@ -74,4 +75,9 @@ class memory_manager {
   std::list<std::tuple<frame, process_ptr, int>> allocations;
   // List indicating spare memory partitions of pair<location, size>
   std::list<std::pair<frame, int>> partitions;
+  // Time table. Stores all the events as <time, process, in/out>.
+  // Third component is true when add in, false when removed.
+  std::list<std::tuple<int, process_ptr, bool>> time_table;
 };
+
+#endif
