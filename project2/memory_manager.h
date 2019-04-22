@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-class process;
+struct process;
 class memory_manager;
 
 typedef unsigned int frame;
