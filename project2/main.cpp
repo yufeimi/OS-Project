@@ -4,7 +4,7 @@
 #include <vector>
 #include "memory_manager.h"
 
-std::vector<process> parse_input(std::ifstream &);
+std::vector<process> &&parse_input(std::ifstream &);
 
 int main(int argc, char const *argv[]) {
   std::ifstream input;
@@ -16,7 +16,7 @@ int main(int argc, char const *argv[]) {
   return 0;
 }
 
-std::vector<process> parse_input(std::ifstream &inputfile) {
+std::vector<process> &&parse_input(std::ifstream &inputfile) {
   std::vector<process> processes;
   std::string line;
   getline(inputfile, line, ' ');
@@ -50,5 +50,5 @@ std::vector<process> parse_input(std::ifstream &inputfile) {
     } else
       break;
   }
-  return processes;
+  return std::move(processes);
 };
