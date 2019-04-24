@@ -16,6 +16,9 @@ int main(int argc, char const *argv[]) {
   input.close();
   memory_manager m(processes, n_frames, n_frames_line, time_memmove);
   m.run(first_fit);
+  m.reset();
+  std::cout << std::endl;
+  m.run(best_fit);
   return 0;
 }
 

@@ -224,9 +224,9 @@ void memory_manager::run(algorithm algo) {
     bool event_inout = std::get<2>(next_event);
     // Cut the time between now and the event
     assert(event_time >= time);
-    time = event_time;
     // If the event is to place an allocation in
     if (event_inout) {
+      time = event_time;
       std::cout << "time " << time << "ms: Process " << event_process->ID
                 << " arrived (requires " << event_process->size << " frames)\n";
       // Determine where to palce
@@ -266,16 +266,51 @@ void memory_manager::run(algorithm algo) {
           std::cout << "time " << time << "ms: Cannot place process "
                     << event_process->ID << " -- skipped!\n";
         }
+      } else if (algo == next_fit) {
+        std::cout << "Not implemented!\n";
+        return;
+      } else if (algo == best_fit) {
+        partitions.sort(compare_partitions);
+        bool available = false;
+        int total_free_space = 0;
+        std::pair<frame, int> least_available_partition = {0, memory_size + 1};
+        for (auto i : partitions) {
+          // Compare partition size with the expected allocation size
+          if (i.second >= event_process->size) {
+            available = true;
+            if (i.second < least_available_partition.second)
+              least_available_partition = i;
+          }
+          total_free_space += i.second;
+        }
+        if (available) {
+          add(least_available_partition.first, event_process,
+              event_process->size);
+          std::cout << "time " << time << "ms: Placed process "
+                    << event_process->ID << ":\n";
+          print_memory();
+        } else if (total_free_space >= event_process->size) {
+          std::cout << "time " << time << "ms: Cannot place process "
+                    << event_process->ID << " -- starting defragmentation\n";
+          // Do defragmentation
+          int time_defrag = defragmentation();
+          // Delay all the future events
+          for (auto& i : time_table) std::get<0>(i) += time_defrag;
+          time += time_defrag;
+          // There should be only one partition
+          assert(partitions.size() == 1);
+          add(partitions.front().first, event_process, event_process->size);
+          std::cout << "time " << time << "ms: Placed process "
+                    << event_process->ID << ":\n";
+          print_memory();
+        } else {  // No space for this memory
+          std::cout << "time " << time << "ms: Cannot place process "
+                    << event_process->ID << " -- skipped!\n";
+        }
+      } else if (algo == non_con) {
+        std::cout << "Not implemented!\n";
+        return;
       }
-    } else if (algo == next_fit) {
-      std::cout << "Not implemented!\n";
-      return;
-    } else if (algo == best_fit) {
-      std::cout << "Not implemented!\n";
-      return;
-    } else if (algo == non_con) {
-      std::cout << "Not implemented!\n";
-      return;
     }
     // If we want to remove a process
     else {
@@ -287,6 +322,7 @@ void memory_manager::run(algorithm algo) {
         }
       }
       if (found_process) {
+        time = event_time;
         std::cout << "time " << time << "ms: Process " << event_process->ID
                   << " removed:\n";
         print_memory();
