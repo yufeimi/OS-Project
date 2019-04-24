@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include "memory_manager.h"
@@ -30,37 +31,43 @@ int main(int argc, char const *argv[]) {
 
 std::vector<process> parse_input(std::ifstream &inputfile) {
   std::vector<process> processes;
-  std::string line;
-  getline(inputfile, line, ' ');
-  while (line[0] != EOF) {
+  std::string line, token, subline;
+  while (getline(inputfile, line)) {
     // Get ID
-    if (isalpha(line[0])) {
-      char ID = line[0];
-      // Get size
-      getline(inputfile, line, ' ');
-      int psize = std::stoi(line);
+    if (!line.empty() && isalpha(line[0])) {
+      std::stringstream parsed(line);
+      // Get ID and size;
+      char ID;
+      int psize;
+      parsed >> ID >> psize;
+      if (ID == '#') continue;
+      parsed.ignore(10, ' ');
       // Get time sequence
       std::list<std::pair<int, int>> sequence;
-      getline(inputfile, line);
-      while (!line.empty()) {
-        std::string token;
-        size_t pos = line.find('/');
+      while (getline(parsed, subline, ' ')) {
+        bool found_comment = false;
+        // Get rid of comments
+        size_t pos = subline.find('#');
+        if (pos != std::string::npos) {
+          subline = subline.substr(0, pos);
+          found_comment = true;
+        }
+        pos = subline.find('/');
         if (pos == std::string::npos) break;
-        token = line.substr(0, pos);
+        token = subline.substr(0, pos);
         int arrival_time = std::stoi(token);
-        line.erase(0, pos + 1);
-        pos = line.find(' ');
-        if (pos == std::string::npos) pos = line.length() - 1;
-        token = line.substr(0, pos);
-        int duration = std::stoi(line);
-        line.erase(0, pos + 1);
+        subline.erase(0, pos + 1);
+        pos = subline.find(' ');
+        if (pos == std::string::npos) pos = subline.length() - 1;
+        token = subline.substr(0, pos);
+        int duration = std::stoi(subline);
+        subline.erase(0, pos + 1);
         sequence.push_back({arrival_time, duration});
+        if (found_comment) break;
       }
       process p(ID, psize, sequence);
       processes.push_back(p);
-      getline(inputfile, line, ' ');
-    } else
-      break;
+    }
   }
   return processes;
 };
