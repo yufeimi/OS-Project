@@ -201,12 +201,16 @@ void memory_manager::run(algorithm algo) {
   switch (algo) {
     case first_fit:
       std::cout << "(Contiguous -- First-Fit)\n";
+      break;
     case next_fit:
       std::cout << "(Contiguous -- Next-Fit)\n";
+      break;
     case best_fit:
       std::cout << "(Contiguous -- Best-Fit)\n";
+      break;
     case non_con:
       std::cout << "(Non-Contiguous)\n";
+      break;
     default:
       std::cout << "Unknown!\n";
   }
