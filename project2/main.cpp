@@ -22,6 +22,9 @@ int main(int argc, char const *argv[]) {
   m.reset();
   std::cout << std::endl;
   m.run(best_fit);
+  m.reset();
+  std::cout << std::endl;
+  m.run(non_con);
   return 0;
 }
 

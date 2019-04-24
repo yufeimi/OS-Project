@@ -360,7 +360,35 @@ void memory_manager::run(algorithm algo) {
                     << event_process->ID << " -- skipped!\n";
         }
       } else if (algo == non_con) {
-        std::cout << "Not implemented!\n";
+        partitions.sort(compare_partitions);
+        int total_free_space = 0;
+        for (auto i : partitions) {
+          total_free_space += i.second;
+        }
+        if (total_free_space >= event_process->size) {
+          // Mark the partitions to be allocated
+          std::list<std::pair<int, int>> marked_partitions;
+          int space_to_be_allocated = event_process->size;
+          for (auto i : partitions) {
+            int psize =
+                (space_to_be_allocated > i.second ? i.second
+                                                  : space_to_be_allocated);
+            marked_partitions.push_back({i.first, psize});
+            space_to_be_allocated -= psize;
+            if (space_to_be_allocated == 0) break;
+          }
+          for (auto i : marked_partitions) {
+            add(i.first, event_process, i.second);
+          }
+          std::cout << "time " << time << "ms: Placed process "
+                    << event_process->ID << ":\n";
+          print_memory();
+        } else {  // No space for this memory
+          std::cout << "time " << time << "ms: Cannot place process "
+                    << event_process->ID << " -- skipped!\n";
+        }
+      } else {
+        std::cerr << "Unknown algorithm!\n";
         return;
       }
     }
@@ -369,7 +397,10 @@ void memory_manager::run(algorithm algo) {
       bool found_process = false;
       for (auto itr = allocations.begin(); itr != allocations.end(); ++itr) {
         if (std::get<1>(*itr)->ID == event_process->ID) {
-          itr = remove(itr);
+          while (std::get<1>(*itr)->ID == event_process->ID) {
+            itr = remove(itr);
+            if (itr == allocations.end()) break;
+          }
           found_process = true;
         }
       }
