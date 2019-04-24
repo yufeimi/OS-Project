@@ -214,6 +214,8 @@ void memory_manager::run(algorithm algo) {
     default:
       std::cout << "Unknown!\n";
   }
+  // Only for next-fit. Store the location of last memory allocation
+  frame last_allocation_end = 0;
   // Fetch the next event;
   while (not time_table.empty()) {
     event next_event = std::move(time_table.front());
@@ -267,8 +269,58 @@ void memory_manager::run(algorithm algo) {
                     << event_process->ID << " -- skipped!\n";
         }
       } else if (algo == next_fit) {
-        std::cout << "Not implemented!\n";
-        return;
+        partitions.sort(compare_partitions);
+        // Look for the first available partition
+        bool available = false;
+        for (auto i : partitions) {
+          if (i.first + i.second < last_allocation_end + event_process->size)
+            continue;
+          // Compare partition size with the expected allocation size
+          if (i.second >= event_process->size) {
+            frame frame_to_be_allocated =
+                (i.first > last_allocation_end ? i.first : last_allocation_end);
+            last_allocation_end = frame_to_be_allocated + event_process->size;
+            add(frame_to_be_allocated, event_process, event_process->size);
+            available = true;
+            break;
+          }
+        }
+        int total_free_space = 0;
+        if (!available) {
+          for (auto i : partitions) {
+            // Compare partition size with the expected allocation size
+            if (i.second >= event_process->size) {
+              last_allocation_end = i.first + event_process->size;
+              add(i.first, event_process, event_process->size);
+              available = true;
+              break;
+            }
+            total_free_space += i.second;
+          }
+        }
+        if (available) {
+          std::cout << "time " << time << "ms: Placed process "
+                    << event_process->ID << ":\n";
+          print_memory();
+        } else if (total_free_space >= event_process->size) {
+          std::cout << "time " << time << "ms: Cannot place process "
+                    << event_process->ID << " -- starting defragmentation\n";
+          // Do defragmentation
+          int time_defrag = defragmentation();
+          // Delay all the future events
+          for (auto& i : time_table) std::get<0>(i) += time_defrag;
+          time += time_defrag;
+          // There should be only one partition
+          assert(partitions.size() == 1);
+          add(partitions.front().first, event_process, event_process->size);
+          last_allocation_end = partitions.front().first;
+          std::cout << "time " << time << "ms: Placed process "
+                    << event_process->ID << ":\n";
+          print_memory();
+        } else {  // No space for this memory
+          std::cout << "time " << time << "ms: Cannot place process "
+                    << event_process->ID << " -- skipped!\n";
+        }
       } else if (algo == best_fit) {
         partitions.sort(compare_partitions);
         bool available = false;

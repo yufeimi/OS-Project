@@ -18,6 +18,9 @@ int main(int argc, char const *argv[]) {
   m.run(first_fit);
   m.reset();
   std::cout << std::endl;
+  m.run(next_fit);
+  m.reset();
+  std::cout << std::endl;
   m.run(best_fit);
   return 0;
 }
