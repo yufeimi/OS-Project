@@ -13,6 +13,7 @@ typedef unsigned int frame;
 typedef std::vector<process>::iterator process_ptr;
 typedef std::list<std::tuple<frame, process_ptr, int>>::iterator allocation_ptr;
 typedef std::list<std::pair<frame, int>>::iterator partition_ptr;
+typedef std::tuple<int, process_ptr, bool> event;
 
 enum algorithm { first_fit, next_fit, best_fit, non_con };
 
@@ -50,7 +51,7 @@ class memory_manager {
   // Add a memory allocation to the physical memory
   void add(frame, process_ptr, int);
   // Remove a memory allocation from the physical memory
-  void remove(allocation_ptr);
+  allocation_ptr remove(allocation_ptr);
   // Defragmentation. Returns total time for this operation in ms.
   int defragmentation();
   // print memory.

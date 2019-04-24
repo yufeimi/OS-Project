@@ -1,7 +1,7 @@
 #include "memory_manager.h"
 
 bool compare_partitions(std::pair<frame, int> a, std::pair<frame, int> b) {
-  return a < b;
+  return a.first < b.first;
 }
 
 bool compare_events(std::tuple<int, process_ptr, bool> a,
@@ -96,7 +96,7 @@ void memory_manager::add(frame location, process_ptr p, int allocation_size) {
   }
 }
 
-void memory_manager::remove(allocation_ptr to_be_removed) {
+allocation_ptr memory_manager::remove(allocation_ptr to_be_removed) {
   frame start_location = std::get<0>(*to_be_removed);
   int psize = std::get<2>(*to_be_removed);
   // Check adjacencies. If there is an adjacent spare
@@ -127,7 +127,7 @@ void memory_manager::remove(allocation_ptr to_be_removed) {
   for (frame i = start_location; i < end_location + 1; ++i) {
     memory[i] = '.';
   }
-  allocations.erase(to_be_removed);
+  auto return_itr = allocations.erase(to_be_removed);
   // Check connected partitions and union them
   partitions.sort(compare_partitions);
   for (auto i = partitions.begin(); i != partitions.end(); ++i) {
@@ -137,11 +137,13 @@ void memory_manager::remove(allocation_ptr to_be_removed) {
       partitions.erase(tmp);
     }
   }
+  return return_itr;
 }
 
 int memory_manager::defragmentation() {
   int total_time = 0;
   bool complete = false;
+  std::list<char> moved_allocations;
   while (!complete) {
     partitions.sort(compare_partitions);
     for (auto& p : partitions) {
@@ -155,6 +157,7 @@ int memory_manager::defragmentation() {
           if (location == p.first + p.second) {
             remove(a);
             add(p.first, process, psize);
+            moved_allocations.push_back(process->ID);
             total_time += psize * t_memmove;
             break;
           }
@@ -164,6 +167,15 @@ int memory_manager::defragmentation() {
       if (p.first + p.second == (size_t)memory_size) complete = true;
     }
   }
+  std::cout << "time " << time + total_time
+            << "ms: Defragmentation complete (moved " << total_time / t_memmove
+            << " frames: ";
+  for (auto i : moved_allocations) {
+    std::cout << i;
+    if (i != moved_allocations.back()) std::cout << ", ";
+  }
+
+  std::cout << ")" << std::endl;
   return total_time;
 }
 
@@ -185,23 +197,113 @@ void memory_manager::print_memory() {
 }
 
 void memory_manager::run(algorithm algo) {
-  auto itr = processes.begin();
-  add(0, itr, itr->size);
-  print_memory();
-  for (auto p : partitions) {
-    std::cout << p.first << " " << p.second << std::endl;
+  std::cout << "time 0ms: Simulator started ";
+  switch (algo) {
+    case first_fit:
+      std::cout << "(Contiguous -- First-Fit)\n";
+    case next_fit:
+      std::cout << "(Contiguous -- Next-Fit)\n";
+    case best_fit:
+      std::cout << "(Contiguous -- Best-Fit)\n";
+    case non_con:
+      std::cout << "(Non-Contiguous)\n";
+    default:
+      std::cout << "Unknown!\n";
   }
-  ++itr;
-  add(partitions.begin()->first, itr, itr->size);
-  print_memory();
-  for (auto p : partitions) {
-    std::cout << p.first << " " << p.second << std::endl;
+  // Fetch the next event;
+  while (not time_table.empty()) {
+    event next_event = std::move(time_table.front());
+    time_table.pop_front();
+    // Pull the informations from the event
+    int event_time = std::get<0>(next_event);
+    process_ptr event_process = std::get<1>(next_event);
+    bool event_inout = std::get<2>(next_event);
+    // Cut the time between now and the event
+    assert(event_time >= time);
+    time = event_time;
+    // If the event is to place an allocation in
+    if (event_inout) {
+      std::cout << "time " << time << "ms: Process " << event_process->ID
+                << " arrived (requires " << event_process->size << " frames)\n";
+      // Determine where to palce
+      if (algo == first_fit) {
+        partitions.sort(compare_partitions);
+        // Look for the first available partition
+        bool available = false;
+        int total_free_space = 0;
+        for (auto i : partitions) {
+          // Compare partition size with the expected allocation size
+          if (i.second >= event_process->size) {
+            add(i.first, event_process, event_process->size);
+            available = true;
+            break;
+          }
+          total_free_space += i.second;
+        }
+        if (available) {
+          std::cout << "time " << time << "ms: Placed process "
+                    << event_process->ID << ":\n";
+          print_memory();
+        } else if (total_free_space >= event_process->size) {
+          std::cout << "time " << time << "ms: Cannot place process "
+                    << event_process->ID << " -- starting defragmentation\n";
+          // Do defragmentation
+          int time_defrag = defragmentation();
+          // Delay all the future events
+          for (auto& i : time_table) std::get<0>(i) += time_defrag;
+          time += time_defrag;
+          // There should be only one partition
+          assert(partitions.size() == 1);
+          add(partitions.front().first, event_process, event_process->size);
+          std::cout << "time " << time << "ms: Placed process "
+                    << event_process->ID << ":\n";
+          print_memory();
+        } else {  // No space for this memory
+          std::cout << "time " << time << "ms: Cannot place process "
+                    << event_process->ID << " -- skipped!\n";
+        }
+      }
+    } else if (algo == next_fit) {
+      std::cout << "Not implemented!\n";
+      return;
+    } else if (algo == best_fit) {
+      std::cout << "Not implemented!\n";
+      return;
+    } else if (algo == non_con) {
+      std::cout << "Not implemented!\n";
+      return;
+    }
+    // If we want to remove a process
+    else {
+      bool found_process = false;
+      for (auto itr = allocations.begin(); itr != allocations.end(); ++itr) {
+        if (std::get<1>(*itr)->ID == event_process->ID) {
+          itr = remove(itr);
+          found_process = true;
+        }
+      }
+      if (found_process) {
+        std::cout << "time " << time << "ms: Process " << event_process->ID
+                  << " removed:\n";
+        print_memory();
+      }
+    }
   }
-  remove(++allocations.begin());
-  print_memory();
-  for (auto p : partitions) {
-    std::cout << p.first << " " << p.second << std::endl;
+  std::cout << "time " << time << "ms: Simulator ended ";
+  switch (algo) {
+    case first_fit:
+      std::cout << "(Contiguous -- First-Fit)\n";
+      break;
+    case next_fit:
+      std::cout << "(Contiguous -- Next-Fit)\n";
+      break;
+    case best_fit:
+      std::cout << "(Contiguous -- Best-Fit)\n";
+      break;
+    case non_con:
+      std::cout << "(Non-Contiguous)\n";
+      break;
+    default:
+      std::cout << "Unknown!\n";
   }
-  defragmentation();
-  print_memory();
 }

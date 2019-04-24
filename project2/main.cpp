@@ -4,19 +4,22 @@
 #include <vector>
 #include "memory_manager.h"
 
-std::vector<process> &&parse_input(std::ifstream &);
+std::vector<process> parse_input(std::ifstream &);
 
 int main(int argc, char const *argv[]) {
+  int n_frames_line = atoi(argv[1]);
+  int n_frames = atoi(argv[2]);
+  int time_memmove = atoi(argv[4]);
   std::ifstream input;
-  input.open("p2-input01.txt");
-  auto processes = parse_input(input);
+  input.open(argv[3]);
+  std::vector<process> &&processes = parse_input(input);
   input.close();
-  memory_manager m(processes, 100, 20, 1);
+  memory_manager m(processes, n_frames, n_frames_line, time_memmove);
   m.run(first_fit);
   return 0;
 }
 
-std::vector<process> &&parse_input(std::ifstream &inputfile) {
+std::vector<process> parse_input(std::ifstream &inputfile) {
   std::vector<process> processes;
   std::string line;
   getline(inputfile, line, ' ');
@@ -50,5 +53,5 @@ std::vector<process> &&parse_input(std::ifstream &inputfile) {
     } else
       break;
   }
-  return std::move(processes);
+  return processes;
 };
