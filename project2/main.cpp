@@ -8,6 +8,7 @@
 std::vector<process> parse_input(std::ifstream &);
 
 int main(int argc, char const *argv[]) {
+  if (argc < 5) std::cerr << "Wrong usage!\n";
   int n_frames_line = atoi(argv[1]);
   int n_frames = atoi(argv[2]);
   int time_memmove = atoi(argv[4]);

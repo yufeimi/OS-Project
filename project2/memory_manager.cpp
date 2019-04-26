@@ -74,20 +74,30 @@ void memory_manager::add(frame location, process_ptr p, int allocation_size) {
   // If we find it then we shrink the size of the partition
   bool spare_check = false;
   for (auto i = partitions.begin(); i != partitions.end(); ++i) {
-    if (location == i->first) {
+    if (i->first <= location &&
+        i->first + i->second >= location + allocation_size) {
       spare_check = true;
       // The partition size must be no less than allocation size.
       assert(i->second >= allocation_size);
-      // Shrink the partition by moving it forward
-      i->second -= allocation_size;
-      if (i->second == 0)
-        i = partitions.erase(i);
-      else
-        i->first += allocation_size;
+      if (i->first == location ||
+          i->first + i->second == location + allocation_size) {
+        i->second -= allocation_size;
+        // Shrink the partition by moving it forward
+        if (i->second == 0)
+          i = partitions.erase(i);
+        else if (i->first == location)
+          i->first += allocation_size;
+      } else {  // If in middle of it
+        std::pair<frame, int> new_partition = {
+            location + allocation_size,
+            i->second - (location - i->first) - allocation_size};
+        partitions.push_back(new_partition);
+        // Split the partition into 2
+        i->second = location - i->first;
+      }
       break;
     }
   }
-  spare_check = true;
   assert(spare_check);
   // Put the allocation in allocations
   allocations.push_front(std::make_tuple(location, p, allocation_size));
@@ -107,7 +117,7 @@ allocation_ptr memory_manager::remove(allocation_ptr to_be_removed) {
   bool adjacent_partition = false;
   for (auto& i : partitions) {
     // If there is a partition before
-    if (i.first + i.second - 1 == start_location) {
+    if (i.first + i.second == start_location) {
       i.second += psize;
       adjacent_partition = true;
       break;
@@ -132,7 +142,8 @@ allocation_ptr memory_manager::remove(allocation_ptr to_be_removed) {
   partitions.sort(compare_partitions);
   for (auto i = partitions.begin(); i != partitions.end(); ++i) {
     auto tmp = i;
-    if (i->first + i->second == (++tmp)->first) {
+    if (++tmp == partitions.end()) break;
+    if (i->first + i->second == tmp->first) {
       i->second += tmp->second;
       partitions.erase(tmp);
     }
@@ -312,8 +323,8 @@ void memory_manager::run(algorithm algo) {
           time += time_defrag;
           // There should be only one partition
           assert(partitions.size() == 1);
+          last_allocation_end = partitions.front().first + event_process->size;
           add(partitions.front().first, event_process, event_process->size);
-          last_allocation_end = partitions.front().first;
           std::cout << "time " << time << "ms: Placed process "
                     << event_process->ID << ":\n";
           print_memory();
